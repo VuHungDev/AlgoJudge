@@ -14,3 +14,4 @@ backend-laravel/.env
 web-next/node_modules/
 web-next/.next/
 mobile/App.old.js
+.env
