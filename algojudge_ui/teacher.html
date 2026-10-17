@@ -1,0 +1,18 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Giảng viên — OJ</title>
+<style>body{font-family:system-ui;margin:0;background:#f6f7f9}header{background:#0d652d;color:#fff;padding:12px 16px}main{max-width:960px;margin:16px auto;padding:0 12px}.card{background:#fff;border-radius:8px;padding:16px;margin-bottom:12px}textarea{width:100%;min-height:120px;font-family:monospace}button{background:#0d652d;color:#fff;border:0;padding:8px 16px;border-radius:6px}input{padding:6px;width:90%}</style></head>
+<body><header><b>Khu giảng viên</b> <a href="index.html" style="color:#fff">Về trang học</a></header><main>
+<div class="card"><h3>Đăng nhập GV</h3><input id="email" placeholder="email"> <input id="pass" type="password" placeholder="mật khẩu"> <button onclick="login()">Đăng nhập</button></div>
+<div class="card"><h3>Tạo bộ dữ liệu mới (>= 5 ca)</h3><input id="pid" placeholder="problem_id (vd 1)"><select id="checker"><option value="exact">Checker: khớp chính xác</option><option value="float">Checker: sai số (số thực)</option></select><textarea id="cases" placeholder='[{"input":"2 3","expected":"5","is_public":1,"group":"co-ban","weight":1}, ...]'></textarea><br><br><button onclick="mkts()">Tạo testset</button><pre id="o1"></pre></div>
+<div class="card"><h3>Chấm lại + Đối chiếu</h3><input id="sid" placeholder="submission_id"><input id="ra" placeholder="run a"><input id="rb" placeholder="run b"><br><br><button onclick="rejudge()">Chấm lại</button> <button onclick="cmp()">Đối chiếu</button><pre id="o2"></pre></div>
+<div class="card"><h3>Chống đạo văn (mục 17)</h3><input id="sa" placeholder="submission a"> <input id="sb" placeholder="submission b"> <button onclick="sim()">So sánh</button><pre id="o4"></pre></div>
+<div class="card"><h3>Theo dõi lớp</h3><input id="cid" placeholder="class_id"> <button onclick="prog()">Xem</button><pre id="o3"></pre></div>
+</main><script>
+const API=(localStorage.API||'http://localhost:8080/api/v1');let T=localStorage.T||'';
+async function api(p,o={}){o.headers={...(o.headers||{}),'Content-Type':'application/json',...(T?{Authorization:'Bearer '+T}:{})};const r=await fetch(API+p,o);return r.json()}
+async function login(){const r=await api('/auth/login',{method:'POST',body:JSON.stringify({email:email.value,password:pass.value})});T=r.token;localStorage.T=T;alert('ok')}
+async function mkts(){const r=await api('/admin/problems/'+pid.value+'/testsets',{method:'POST',body:JSON.stringify({checker:checker.value,cases:JSON.parse(cases.value)})});o1.textContent=JSON.stringify(r,null,2)}
+async function rejudge(){const r=await api('/admin/submissions/'+sid.value+'/rejudge',{method:'POST'});o2.textContent=JSON.stringify(r,null,2)}
+async function cmp(){const r=await api(`/admin/submissions/${sid.value}/compare?a=${ra.value}&b=${rb.value}`);o2.textContent=JSON.stringify(r,null,2)}
+async function prog(){const r=await api('/admin/classes/'+cid.value+'/progress');o3.textContent=JSON.stringify(r,null,2)}
+async function sim(){const r=await api(`/admin/submissions/${sa.value}/similarity/${sb.value}`);o4.textContent=JSON.stringify(r,null,2)}
+</script></body></html>

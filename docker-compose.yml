@@ -1,0 +1,73 @@
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: oj
+      MYSQL_USER: oj
+      MYSQL_PASSWORD: oj_secret
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  api:
+    build: ./algojudge_backend
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "${API_PORT:-8080}:80"
+    volumes:
+      - ./algojudge_backend:/var/www/html
+
+  worker:
+    build: ./algojudge_backend
+    env_file: .env
+    depends_on:
+      - db
+    command: ["php", "/var/www/html/worker/worker.php"]
+    volumes:
+      - ./algojudge_backend:/var/www/html
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    volumes:
+      - ./algojudge_ui:/usr/share/nginx/html:ro
+
+  # Laravel song song (Phase 1 hien dai hoa). DB rieng oj_laravel de khong vo PHP thuan.
+  laravel:
+    build: ./backend-laravel
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "${LARAVEL_PORT:-8081}:80"
+    volumes:
+      - ./backend-laravel:/var/www/html
+
+  laravel-worker:
+    build: ./backend-laravel
+    env_file: .env
+    depends_on:
+      - db
+    command: ["php", "/var/www/html/artisan", "judge:work"]
+    volumes:
+      - ./backend-laravel:/var/www/html
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # Web Next.js (Phase 2). Web tinh cu (algojudge_ui) van giu tren WEB_PORT.
+  web-next:
+    build: ./web-next
+    depends_on:
+      - laravel
+    ports:
+      - "${WEB_NEXT_PORT:-3001}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8081/api/v1
+
+volumes:
+  dbdata:

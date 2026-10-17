@@ -1,0 +1,16 @@
+log/*
+tmp/*
+!/log/.keep
+!/tmp/.keep
+.bundle/
+.byebug_history
+coverage/
+srv/
+environment
+node_modules/
+.expo/
+backend-laravel/vendor/
+backend-laravel/.env
+web-next/node_modules/
+web-next/.next/
+mobile/App.old.js

@@ -1,0 +1,14 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Ops — OJ</title>
+<style>body{font-family:system-ui;margin:0;background:#f6f7f9}header{background:#333;color:#fff;padding:12px 16px}main{max-width:960px;margin:16px auto;padding:0 12px}.card{background:#fff;border-radius:8px;padding:16px;margin-bottom:12px}button{background:#333;color:#fff;border:0;padding:8px 16px;border-radius:6px}input{padding:6px}</style></head>
+<body><header><b>Quản trị dịch vụ thực thi</b> <a href="index.html" style="color:#fff">Về trang học</a></header><main>
+<div class="card"><h3>Đăng nhập admin</h3><input id="email"> <input id="pass" type="password"> <button onclick="login()">Đăng nhập</button></div>
+<div class="card"><h3>Hàng đợi & Worker</h3><button onclick="q()">Xem queue</button> <button onclick="w()">Xem workers</button><pre id="o"></pre></div>
+<div class="card"><h3>Requeue run lỗi</h3><input id="rid" placeholder="run id"> <button onclick="rq()">Requeue</button></div>
+</main><script>
+const API=(localStorage.API||'http://localhost:8080/api/v1');let T=localStorage.T||'';
+async function api(p,o={}){o.headers={...(o.headers||{}),'Content-Type':'application/json',...(T?{Authorization:'Bearer '+T}:{})};const r=await fetch(API+p,o);return r.json()}
+async function login(){const r=await api('/auth/login',{method:'POST',body:JSON.stringify({email:email.value,password:pass.value})});T=r.token;localStorage.T=T;alert('ok')}
+async function q(){o.textContent=JSON.stringify(await api('/ops/queue'),null,2)}
+async function w(){o.textContent=JSON.stringify(await api('/ops/workers'),null,2)}
+async function rq(){o.textContent=JSON.stringify(await api('/ops/runs/'+rid.value+'/requeue',{method:'POST'}),null,2)}
+</script></body></html>
