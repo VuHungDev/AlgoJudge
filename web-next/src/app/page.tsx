@@ -7,7 +7,16 @@ import { useAuth } from '@/lib/auth';
 
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
-const MONACO_LANG: Record<string, string> = { python: 'python', cpp: 'cpp', js: 'javascript' };
+const MONACO_LANG: Record<string, string> = { python: 'python', cpp: 'cpp', js: 'javascript', java: 'java', go: 'go', c: 'c' };
+
+const STARTER: Record<string, string> = {
+  python: 'a,b=map(int,input().split());print(a+b)',
+  cpp: '#include <bits/stdc++.h>\nusing namespace std;\nint main(){long long a,b;if(!(cin>>a>>b))return 0;cout<<a+b;return 0;}',
+  js: 'const fs=require("fs");const[a,b]=fs.readFileSync(0,"utf8").trim().split(/\\s+/).map(Number);console.log(a+b);',
+  java: 'import java.util.*;\npublic class Main{\npublic static void main(String[]a){\nScanner s=new Scanner(System.in);\nlong x=s.nextLong(),y=s.nextLong();\nSystem.out.println(x+y);}}',
+  go: 'package main\nimport "fmt"\nfunc main(){var a,b int;fmt.Scan(&a,&b);fmt.Println(a+b)}',
+  c: '#include <stdio.h>\nint main(){long long a,b;if(scanf("%lld%lld",&a,&b)!=2)return 0;printf("%lld\\n",a+b);return 0;}',
+};
 
 export default function Home() {
   const { me, login, register, logout } = useAuth();
@@ -109,10 +118,13 @@ export default function Home() {
         {detail?.current_version && (
           <p className="text-sm mb-2 whitespace-pre-wrap">{detail.current_version.statement}</p>
         )}
-        <select className="border p-1 mb-2" value={lang} onChange={(e) => setLang(e.target.value)}>
+        <select className="border p-1 mb-2" value={lang} onChange={(e) => { setLang(e.target.value); setCode(STARTER[e.target.value] || ''); }}>
           <option value="python">Python</option>
           <option value="cpp">C++</option>
           <option value="js">JavaScript</option>
+          <option value="java">Java</option>
+          <option value="go">Go</option>
+          <option value="c">C</option>
         </select>
         <Editor height="240px" language={MONACO_LANG[lang]} value={code} onChange={(v) => setCode(v || '')} />
         <textarea className="border w-full mt-2 p-1" rows={2} placeholder="stdin chạy thử" value={stdin} onChange={(e) => setStdin(e.target.value)} />

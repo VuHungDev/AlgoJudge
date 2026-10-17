@@ -85,6 +85,9 @@ if ($route('GET', '#^/languages$#')) {
     ['id' => 1, 'name' => 'Python (3.12)', 'source_file' => 'main.py', 'compile_cmd' => null, 'run_cmd' => 'python3 main.py'],
     ['id' => 2, 'name' => 'C++ (GCC 13)', 'source_file' => 'main.cpp', 'compile_cmd' => 'g++ -O2 -std=c++17 -o /tmp/a main.cpp', 'run_cmd' => '/tmp/a'],
     ['id' => 3, 'name' => 'JavaScript (Node 22)', 'source_file' => 'main.js', 'compile_cmd' => null, 'run_cmd' => 'node main.js'],
+    ['id' => 4, 'name' => 'Java (Temurin 17)', 'source_file' => 'Main.java', 'compile_cmd' => 'javac Main.java', 'run_cmd' => 'java Main'],
+    ['id' => 5, 'name' => 'Go (1.22)', 'source_file' => 'main.go', 'compile_cmd' => 'go build -o /tmp/a main.go', 'run_cmd' => '/tmp/a'],
+    ['id' => 6, 'name' => 'C (GCC 13)', 'source_file' => 'main.c', 'compile_cmd' => 'gcc -O2 -std=c17 -o /tmp/a main.c', 'run_cmd' => '/tmp/a'],
   ]]);
 }
 if ($route('GET', '#^/statuses$#')) {

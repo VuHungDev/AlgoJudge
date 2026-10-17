@@ -37,13 +37,16 @@ hay bất kỳ verdict nào quy lỗi cho người học.
 Điểm subtask: nhóm ca theo `group_name`, tính theo trọng số `weight`
 (`scoreSubtasks`), tổng hợp có trọng số.
 
-## 4. Ngôn ngữ được chấm
+## 4. Ngôn ngữ được chấm (kết hợp đa ngôn ngữ)
 
 | Ngôn ngữ | Sandbox | Chạy |
 |---|---|---|
-| Python | `sandbox/python` | `python3 main.py`, stdin pipe |
-| C++ | `sandbox/cpp` | `g++ -O2 -std=c++17` (+60s compile), chạy binary |
-| JavaScript | `sandbox/js` | `node main.js` |
+| Python | `sandbox/python` | `python3 main.py`, stdin pipe, pids 32 |
+| C++ | `sandbox/cpp` | `g++ -O2 -std=c++17` (+60s compile), pids 32 |
+| JavaScript | `sandbox/js` | `node main.js`, pids 32 |
+| Java | `sandbox/java` (Temurin 17) | `javac` (+60s) rồi `java Main`, pids 48 (JVM cần nhiều tiến trình) |
+| Go | `sandbox/go` (1.22) | `go build -p 1` với `GOCACHE=/tmp GOMAXPROCS=1 GOPROXY=off` (+60s), pids 128 (toolchain fork nhiều) |
+| C | `sandbox/c` (GCC 13) | `gcc -O2 -std=c17` (+60s), pids 32 |
 
 Mã nộp gửi kèm `OJ_CODE` base64 qua biến môi trường, `stdout` giới hạn 1MB,
 `stderr` 64KB. Muốn thêm Java: thêm image + nhánh `runCase`, không đổi API/DB.

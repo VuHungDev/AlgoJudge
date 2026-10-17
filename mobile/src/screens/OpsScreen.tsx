@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Button, ScrollView, TextInput } from 'react-native';
 import { api } from '../api';
 
-// Khu ops tren mobile: hang doi + worker + requeue.
+// Khu ops tren mobile (dong bo voi web /ops): queue + workers + requeue.
 export default function OpsScreen() {
   const [q, setQ] = useState<any>(null);
   const [rid, setRid] = useState('');
@@ -10,7 +10,8 @@ export default function OpsScreen() {
 
   const load = async () => {
     const queue = await api('/ops/queue').catch((e) => ({ error: String(e) }));
-    setQ(queue);
+    const workers = await api('/ops/workers').catch((e) => ({ error: String(e) }));
+    setQ({ queue, workers });
   };
 
   useEffect(() => { load(); }, []);

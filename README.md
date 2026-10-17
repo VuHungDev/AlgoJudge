@@ -2,9 +2,10 @@
 
 > **Ngôn ngữ chính: PHP.** Toàn bộ backend (API + worker chấm bài) viết bằng PHP —
 > bản PHP thuần (`algojudge_backend/`) và bản Laravel (`backend-laravel/`) chạy song
-> song cùng contract `/api/v1`. Ngôn ngữ *được chấm* (bài nộp của học viên):
-> Python, C++, JavaScript — thêm ngôn ngữ mới chỉ cần thêm image sandbox +
-> 1 nhánh `runCase`, không đổi API. Web: HTML tĩnh + Next.js. Mobile: Expo.
+> song cùng contract `/api/v1`. Ngôn ngữ *được chấm* (bài nộp của học viên, chạy
+> trong sandbox cách ly): Python, C++, JavaScript, **Java, Go, C** — thêm ngôn ngữ
+> mới chỉ cần thêm image sandbox + 1 nhánh `runCase`, không đổi API. Web: HTML
+> tĩnh + Next.js (đồng bộ tính năng). Mobile: Expo 9 màn hình (đồng bộ với web).
 
 Nhóm tự viết: điều phối chấm (`algojudge_backend/src/Service/JudgeService.php`), so sánh đầu ra + tổng hợp + checker float + điểm subtask (`algojudge_backend/src/Judge/Comparator.php`), đo tương tự mã (`Similarity.php`).
 Tách lớp đúng mục 3.1 Claude.md: `Controller` → `Service` → `Repository`, `Middleware` rate-limit.
@@ -23,6 +24,9 @@ Copy-Item .env.example .env
 docker build -t oj-sandbox-python ./algojudge_backend/sandbox/python
 docker build -t oj-sandbox-cpp ./algojudge_backend/sandbox/cpp
 docker build -t oj-sandbox-js ./algojudge_backend/sandbox/js
+docker build -t oj-sandbox-java ./algojudge_backend/sandbox/java
+docker build -t oj-sandbox-go ./algojudge_backend/sandbox/go
+docker build -t oj-sandbox-c ./algojudge_backend/sandbox/c
 docker compose up -d --build
 docker compose exec api php migrations/migrate.php
 docker compose exec api php seeds/seed.php

@@ -8,7 +8,7 @@ use OJ\Db;
 // Nhom tu viet: dieu phoi cham — tao submission + judging_run (idempotency), chay sandbox, tong hop.
 final class JudgeService {
   public static function submit(int $uid, int $pvId, string $lang, string $code, string $idemKey, array $extra = []): array {
-    if (!in_array($lang, ['python', 'cpp', 'js'], true)) Db::json(['error' => 'language must be python|cpp|js'], 422);
+    if (!in_array($lang, ['python', 'cpp', 'js', 'java', 'go', 'c'], true)) Db::json(['error' => 'language must be python|cpp|js|java|go|c'], 422);
     if (strlen($code) < 1 || strlen($code) > 100000) Db::json(['error' => 'bad code size'], 422);
     // Port tu Submission model (Ruby): validate gioi han tuy chinh tung lan nop.
     $runs = max(1, min(20, (int)($extra['number_of_runs'] ?? Config::numberOfRuns())));
@@ -62,6 +62,27 @@ final class JudgeService {
       $run = ['docker', 'run', '--rm', '-i', '--init', '--network', 'none', '--cap-drop', 'ALL', '--pids-limit', '32',
         '-m', '256m', '--cpus', '1.0', '--read-only', '--tmpfs', '/tmp:rw,nosuid,size=64m', '-w', '/tmp',
         '--user', 'nobody', '--name', '', '-e', "OJ_CODE=$codeB64", $img, 'sh', '-c', $sh];
+    } elseif ($lang === 'java') {
+      $img = 'oj-sandbox-java';
+      $copts = self::cleanOpt($compilerOptions);
+      $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./Main.java && javac ' . ($copts !== '' ? $copts . ' ' : '') . './Main.java 2>./ce.txt && java Main' . ($cmdArgs !== '' ? ' ' . $cmdArgs : '') . ' || { cat ./ce.txt >&2; exit 99; }';
+      $run = ['docker', 'run', '--rm', '-i', '--init', '--network', 'none', '--cap-drop', 'ALL', '--pids-limit', '32',
+        '-m', '256m', '--cpus', '1.0', '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=128m', '-w', '/tmp',
+        '--user', 'nobody', '--name', '', '-e', "OJ_CODE=$codeB64", $img, 'sh', '-c', $sh];
+    } elseif ($lang === 'go') {
+      $img = 'oj-sandbox-go';
+      $copts = self::cleanOpt($compilerOptions);
+      $sh = 'export GOCACHE=/tmp/gocache GOFLAGS=-mod=mod GOPROXY=off GOMAXPROCS=1 && printf "%s" "$OJ_CODE" | base64 -d > ./main.go && go build -p 1 ' . ($copts !== '' ? $copts . ' ' : '') . '-o ./a ./main.go 2>./ce.txt && ./a' . ($cmdArgs !== '' ? ' ' . $cmdArgs : '') . ' || { cat ./ce.txt >&2; exit 99; }';
+      $run = ['docker', 'run', '--rm', '-i', '--init', '--network', 'none', '--cap-drop', 'ALL', '--pids-limit', '32',
+        '-m', '256m', '--cpus', '1.0', '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=128m', '-w', '/tmp',
+        '--user', 'nobody', '--name', '', '-e', "OJ_CODE=$codeB64", $img, 'sh', '-c', $sh];
+    } elseif ($lang === 'c') {
+      $img = 'oj-sandbox-c';
+      $copts = self::cleanOpt($compilerOptions);
+      $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.c && gcc -O2 -std=c17 ' . ($copts !== '' ? $copts . ' ' : '') . '-o ./a ./main.c 2>./ce.txt && ./a' . ($cmdArgs !== '' ? ' ' . $cmdArgs : '') . ' || { cat ./ce.txt >&2; exit 99; }';
+      $run = ['docker', 'run', '--rm', '-i', '--init', '--network', 'none', '--cap-drop', 'ALL', '--pids-limit', '32',
+        '-m', '256m', '--cpus', '1.0', '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=128m', '-w', '/tmp',
+        '--user', 'nobody', '--name', '', '-e', "OJ_CODE=$codeB64", $img, 'sh', '-c', $sh];
     } else {
       $img = 'oj-sandbox-cpp';
       $copts = self::cleanOpt($compilerOptions);
@@ -73,11 +94,15 @@ final class JudgeService {
     {
       // Dat ten container de don dep khi timeout: docker CLI co the khong chet theo SIGTERM
       // cua lenh timeout, container moi chay se thanh mo coi va an CPU mai.
+      // Go runtime can thread (clone) ke ca chuong trinh don gian -> pids-limit cao hon.
+      $pids = $lang === 'go' ? '128' : ($lang === 'java' ? '48' : '32');
+      $runPids = array_search('--pids-limit', $run, true);
+      $run[$runPids + 1] = $pids;
       $cname = 'ojrun_' . bin2hex(random_bytes(6));
       $ni = array_search('--name', $run, true);
       $run[$ni + 1] = $cname;
-      // C++ duoc cong them ngan sach bien dich (toi da 60s), khong tinh vao time limit cua bai.
-      $timeout = max(1, (int)ceil($timeLimitMs / 1000) + 2) + ($lang === 'cpp' ? 60 : 0);
+      // C++/Java/Go/C duoc cong them ngan sach bien dich (toi da 60s), khong tinh vao time limit cua bai.
+      $timeout = max(1, (int)ceil($timeLimitMs / 1000) + 2) + (in_array($lang, ['cpp', 'java', 'go', 'c'], true) ? 60 : 0);
       $desc = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
       // -k: TERM khong chet thi KILL sau 5s.
       $p = proc_open(array_merge(['timeout', '-k', '5', (string)$timeout], $run), $desc, $pipes);
@@ -98,7 +123,7 @@ final class JudgeService {
       $ms = (int)((microtime(true) - $t0) * 1000);
       $out = substr($out ?? '', 0, 1 << 20); $err = substr($err ?? '', 0, 65536);
       if ($code_exit === 124) return ['TIME_LIMIT_EXCEEDED', $out, '', $ms];
-      if ($code_exit === 99 && $lang === 'cpp') return ['COMPILE_ERROR', '', $err, $ms];
+      if ($code_exit === 99 && in_array($lang, ['cpp', 'java', 'go', 'c'], true)) return ['COMPILE_ERROR', '', $err, $ms];
       if ($code_exit !== 0) {
         if (str_contains($err, 'SyntaxError') || str_contains($err, 'IndentationError')) return ['COMPILE_ERROR', '', $err, $ms];
         if (str_contains($err, 'MemoryError') || str_contains($err, 'std::bad_alloc')) return ['MEMORY_LIMIT_EXCEEDED', $out, $err, $ms];

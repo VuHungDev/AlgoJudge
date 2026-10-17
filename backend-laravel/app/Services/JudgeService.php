@@ -22,20 +22,38 @@ class JudgeService
             $img = 'oj-sandbox-js';
             $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.js && node ./main.js'.($cmdArgs !== '' ? ' '.$cmdArgs : '');
             $tmpfs = '/tmp:rw,nosuid,size=64m';
+        } elseif ($lang === 'java') {
+            $img = 'oj-sandbox-java';
+            $copts = self::cleanOpt($compilerOptions);
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./Main.java && javac '.($copts !== '' ? $copts.' ' : '').'./Main.java 2>./ce.txt && java Main'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
+            $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
+        } elseif ($lang === 'go') {
+            $img = 'oj-sandbox-go';
+            $copts = self::cleanOpt($compilerOptions);
+            $sh = 'export GOCACHE=/tmp/gocache GOFLAGS=-mod=mod GOPROXY=off GOMAXPROCS=1 && printf "%s" "$OJ_CODE" | base64 -d > ./main.go && go build -p 1 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.go 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
+            $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
+        } elseif ($lang === 'c') {
+            $img = 'oj-sandbox-c';
+            $copts = self::cleanOpt($compilerOptions);
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.c && gcc -O2 -std=c17 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.c 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
+            $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
         } else {
             $img = 'oj-sandbox-cpp';
             $copts = self::cleanOpt($compilerOptions);
             $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.cpp && g++ -O2 -std=c++17 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.cpp 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
             $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
         }
-        $run = ['docker', 'run', '--rm', '-i', '--init', '--network', 'none', '--cap-drop', 'ALL', '--pids-limit', '32',
+        // Go runtime can thread (clone) ke ca chuong trinh don gian -> pids-limit cao hon.
+        // Java can nhieu tien trinh hon Python/JS luc JVM khoi dong.
+        $pids = $lang === 'go' ? '128' : ($lang === 'java' ? '48' : '32');
+        $run = ['docker', 'run', '--rm', '-i', '--init', '--network', 'none', '--cap-drop', 'ALL', '--pids-limit', $pids,
             '-m', '256m', '--cpus', '1.0', '--read-only', '--tmpfs', $tmpfs, '-w', '/tmp',
             '--user', 'nobody', '--name', '', '-e', "OJ_CODE=$codeB64", $img, 'sh', '-c', $sh];
 
         $cname = 'ojrun_'.bin2hex(random_bytes(6));
         $ni = array_search('--name', $run, true);
         $run[$ni + 1] = $cname;
-        $timeout = max(1, (int) ceil($timeLimitMs / 1000) + 2) + ($lang === 'cpp' ? 60 : 0);
+        $timeout = max(1, (int) ceil($timeLimitMs / 1000) + 2) + (in_array($lang, ['cpp', 'java', 'go', 'c'], true) ? 60 : 0);
         $desc = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $p = proc_open(array_merge(['timeout', '-k', '5', (string) $timeout], $run), $desc, $pipes);
         if (! is_resource($p)) {
@@ -62,7 +80,7 @@ class JudgeService
         if ($exit === 124) {
             return ['TIME_LIMIT_EXCEEDED', $out, '', $ms];
         }
-        if ($exit === 99 && $lang === 'cpp') {
+        if ($exit === 99 && in_array($lang, ['cpp', 'java', 'go', 'c'], true)) {
             return ['COMPILE_ERROR', '', $err, $ms];
         }
         if ($exit !== 0) {
