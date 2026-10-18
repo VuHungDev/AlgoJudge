@@ -15,6 +15,8 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/me/device-token', [AuthController::class, 'registerDevice']);
+    Route::delete('/me/device-token', [AuthController::class, 'unregisterDevice']);
 
     Route::get('/problems', [ProblemController::class, 'index']);
     Route::get('/problems/{id}', [ProblemController::class, 'show']);

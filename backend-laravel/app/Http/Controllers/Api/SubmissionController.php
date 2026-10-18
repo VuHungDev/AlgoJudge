@@ -7,6 +7,7 @@ use App\Judge\Comparator;
 use App\Judge\Similarity;
 use App\Models\CaseResult;
 use App\Models\JudgingRun;
+use App\Models\Problem;
 use App\Models\ProblemVersion;
 use App\Models\Submission;
 use App\Services\JudgeService;
@@ -234,10 +235,12 @@ class SubmissionController extends Controller
     public function progress(Request $request)
     {
         $uid = $request->user()->id;
-        $total = Submission::where('user_id', $uid)->distinct('problem_version_id')->count('problem_version_id');
+        $total = Problem::count();
         $solved = JudgingRun::join('submissions as s', 's.id', '=', 'judging_runs.submission_id')
+            ->join('problems as p', 'p.current_version_id', '=', 's.problem_version_id')
             ->where('s.user_id', $uid)->where('judging_runs.is_current', 1)
-            ->where('judging_runs.verdict', 'ACCEPTED')->count();
+            ->where('judging_runs.verdict', 'ACCEPTED')
+            ->distinct('p.id')->count('p.id');
 
         return response()->json(['total' => $total, 'solved' => $solved]);
     }

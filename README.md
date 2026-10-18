@@ -59,6 +59,7 @@ docker compose logs worker --tail 20
 - Ngôn ngữ JavaScript (Node 22, image `oj-sandbox-js`), chọn ở UI + `POST /submissions` (`language=js`).
 - Checker sai số (`checker='float'`), điểm subtask theo `group`/`weight`, SSE `GET /submissions/{id}/events` thay polling, chống đạo văn `GET /admin/submissions/{a}/similarity/{b}`.
 - Contest có giờ + leaderboard realtime, streak ngày, gợi ý bài tiếp theo theo năng lực (`/contests`, `/me/streak`, `/me/recommend`) — có cả trên web-next `/contests` và app Expo.
+- Lease recovery tự động cho worker sau crash/timeout; API JSON 401 ổn định; Expo push token + thông báo khi chấm xong.
 
 ## Expo (9 màn hình)
 Login, Problems, Detail (chạy thử + nộp + polling), History, Result (chi tiết bài nộp + mã nguồn), Contests (leaderboard + streak + gợi ý), Profile (hồ sơ + đăng xuất), Teacher (chấm lại), Ops (hàng đợi + requeue). Token lưu SecureStore; React Native không có EventSource nên dùng polling 2s.

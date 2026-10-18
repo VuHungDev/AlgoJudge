@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, ScrollView } from 'react-native';
+import { View, Text, TextInput, Button, ScrollView, Alert } from 'react-native';
 import { api, pollSubmission } from '../api';
 
 const STARTER: Record<string, string> = {
@@ -13,6 +13,12 @@ const STARTER: Record<string, string> = {
 
 const LANGS = ['python', 'cpp', 'js', 'java', 'go', 'c'];
 
+function createIdempotencyKey(): string {
+  const cryptoApi = (globalThis as any).crypto;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function DetailScreen({ route, navigation }: any) {
   const { id, vid } = route.params;
   const [detail, setDetail] = useState<any>(null);
@@ -20,31 +26,48 @@ export default function DetailScreen({ route, navigation }: any) {
   const [code, setCode] = useState(STARTER.python);
   const [stdin, setStdin] = useState('2 3');
   const [out, setOut] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api(`/problems/${id}`).then(setDetail);
+    api(`/problems/${id}`).then(setDetail).catch((e) => setOut(String(e.message || e)));
     api(`/problems/${id}/draft`).then((d) => d.code && setCode(d.code)).catch(() => {});
   }, [id]);
 
-  const run = async () => {
-    const r = await api('/run', {
-      method: 'POST',
-      body: JSON.stringify({ language: lang, source_code: code, stdin }),
+  const saveDraft = async () => {
+    await api(`/problems/${id}/draft`, {
+      method: 'PUT',
+      body: JSON.stringify({ language: lang, code }),
     });
-    setOut(JSON.stringify(r));
+    setOut('Đã lưu nháp');
+  };
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      const r = await api('/run', {
+        method: 'POST',
+        body: JSON.stringify({ language: lang, source_code: code, stdin }),
+      });
+      setOut(JSON.stringify(r, null, 2));
+    } catch (e: any) { setOut(String(e.message || e)); }
+    finally { setBusy(false); }
   };
 
   const submit = async () => {
-    const r = await api('/submissions', {
-      method: 'POST',
-      headers: { 'Idempotency-Key': String(Date.now()) },
-      body: JSON.stringify({ problem_version_id: vid, language: lang, source_code: code }),
-    });
-    setOut('Đã nộp #' + r.submission_id + ' — đang chấm...');
-    await pollSubmission(r.submission_id, (s) =>
-      setOut(s.verdict ? JSON.stringify(s) : `Trạng thái: ${s.status}`),
-    );
-    navigation.navigate('Result', { id: r.submission_id });
+    setBusy(true);
+    try {
+      const r = await api('/submissions', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': createIdempotencyKey() },
+        body: JSON.stringify({ problem_version_id: vid, language: lang, source_code: code }),
+      });
+      setOut('Đã nộp #' + r.submission_id + ' — đang chấm...');
+      await pollSubmission(r.submission_id, (s) =>
+        setOut(s.verdict ? JSON.stringify(s, null, 2) : `Trạng thái: ${s.status}`),
+      );
+      navigation.navigate('Result', { id: r.submission_id });
+    } catch (e: any) { setOut(String(e.message || e)); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -61,8 +84,9 @@ export default function DetailScreen({ route, navigation }: any) {
       </View>
       <TextInput multiline value={code} onChangeText={setCode} style={{ borderWidth: 1, minHeight: 160, marginTop: 8, fontFamily: 'monospace' }} />
       <TextInput placeholder="stdin chạy thử" value={stdin} onChangeText={setStdin} style={{ borderWidth: 1, marginTop: 8 }} />
-      <Button title="Chạy thử" onPress={run} />
-      <Button title="Nộp bài" onPress={submit} />
+      <Button title="Lưu nháp" onPress={saveDraft} disabled={busy} />
+      <Button title={busy ? 'Đang chạy…' : 'Chạy thử'} onPress={run} disabled={busy} />
+      <Button title={busy ? 'Đang nộp…' : 'Nộp bài'} onPress={submit} disabled={busy} />
       <Text style={{ marginTop: 8 }}>{out}</Text>
     </ScrollView>
   );

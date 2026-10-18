@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button } from 'react-native';
-import { api, setToken } from '../api';
+import { api, registerPushToken, setToken } from '../api';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -14,6 +14,7 @@ export default function LoginScreen({ navigation }: any) {
         body: JSON.stringify({ email, password: pass }),
       });
       await setToken(r.token || '');
+      await registerPushToken();
       navigation.replace('Problems');
     } catch (e: any) {
       setErr(String(e.message || e).slice(0, 200));

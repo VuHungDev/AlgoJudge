@@ -35,6 +35,29 @@ class AuthController extends Controller
         return response()->json(['token' => $user->createToken('api')->plainTextToken]);
     }
 
+    public function registerDevice(Request $request)
+    {
+        $data = $request->validate([
+            'expo_token' => 'required|string|max:255',
+            'platform' => 'nullable|in:android,ios',
+        ]);
+        \App\Models\DeviceToken::updateOrCreate(
+            ['expo_token' => $data['expo_token']],
+            ['user_id' => $request->user()->id, 'platform' => $data['platform'] ?? 'android']
+        );
+
+        return response()->json(['registered' => true]);
+    }
+
+    public function unregisterDevice(Request $request)
+    {
+        $data = $request->validate(['expo_token' => 'required|string|max:255']);
+        \App\Models\DeviceToken::where('user_id', $request->user()->id)
+            ->where('expo_token', $data['expo_token'])->delete();
+
+        return response()->json(['unregistered' => true]);
+    }
+
     public function me(Request $request)
     {
         return response()->json($request->user()->only(['id', 'email', 'role']));

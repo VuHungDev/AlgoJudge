@@ -50,9 +50,16 @@ Sự cố gặp và cách sửa: (1) cột `language` ENUM chưa có java/go/c �
 `test_comparator.php`: **24/24 PASS**. Web `/teacher` và Expo Teacher đều cho
 chọn checker; regex yêu cầu mẫu và giới hạn 500 ký tự. API end-to-end cần chạy
 khi stack đã khởi động và quyền ghi database được cấp.
+## 1d. Lease recovery, API JSON và push notification
 
+- Worker PHP thuần và Laravel đều quét `RUNNING` quá hạn lease trong transaction;
+  còn attempt thì đưa về `QUEUED`, hết attempt thì `SYSTEM_ERROR`, xóa lease token.
+- Laravel có test tự động `JudgeLeaseRecoveryTest`: **5 tests / 7 assertions PASS**,
+  gồm requeue, SYSTEM_ERROR sau 3 attempt và API chưa đăng nhập trả JSON 401.
+- Expo token được đăng ký qua `POST /api/v1/me/device-token`, lưu trong `device_tokens`;
+  Laravel worker gọi Expo Push API khi bài chấm xong. Push là tùy chọn: lỗi Expo không
+  làm hỏng kết quả chấm.
 
-Kill worker khi job đang `RUNNING` → job quá hạn lease → worker khác đưa lại
 `QUEUED` (`RETRY_PENDING`, tăng `attempt`); vượt số lần thử → `SYSTEM_ERROR`
 để admin requeue (`POST /ops/runs/{id}/requeue`). Không có verdict nào quy lỗi
 cho người học. Kết quả: PASS.

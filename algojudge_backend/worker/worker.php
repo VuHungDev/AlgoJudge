@@ -11,6 +11,14 @@ $maxAttempt = 3;
 while (true) {
   try {
     $pdo->beginTransaction();
+    $expired = $pdo->query("SELECT id, attempt FROM judging_runs WHERE status='RUNNING' AND lease_expires_at < NOW() ORDER BY id LIMIT 20 FOR UPDATE SKIP LOCKED")->fetchAll();
+    foreach ($expired as $stale) {
+      if ((int)$stale['attempt'] >= $maxAttempt) {
+        $pdo->prepare("UPDATE judging_runs SET status='SYSTEM_ERROR', verdict='SYSTEM_ERROR', lease_token=NULL, lease_expires_at=NULL, finished_at=NOW() WHERE id=? AND status='RUNNING'")->execute([$stale['id']]);
+      } else {
+        $pdo->prepare("UPDATE judging_runs SET status='QUEUED', verdict=NULL, lease_token=NULL, lease_expires_at=NULL WHERE id=? AND status='RUNNING'")->execute([$stale['id']]);
+      }
+    }
     $job = $pdo->query("SELECT r.*, s.language, s.source_code, s.problem_version_id, s.number_of_runs, s.compiler_options, s.command_line_arguments, s.callback_url FROM judging_runs r JOIN submissions s ON s.id=r.submission_id WHERE r.status='QUEUED' ORDER BY r.id LIMIT 1 FOR UPDATE SKIP LOCKED")->fetch();
     if (!$job) { $pdo->commit(); sleep(2); continue; }
     $lease = bin2hex(random_bytes(16));

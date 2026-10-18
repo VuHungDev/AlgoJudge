@@ -1,5 +1,6 @@
 // Client API dung chung, port tu App.js cu: fetch + Bearer + Idempotency-Key.
 import * as SecureStore from 'expo-secure-store';
+import * as Notifications from 'expo-notifications';
 
 declare const process: { env: Record<string, string | undefined> };
 const API = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8081/api/v1';
@@ -13,6 +14,25 @@ export async function setToken(t: string) {
   else await SecureStore.deleteItemAsync('oj_token');
 }
 
+export async function registerPushToken(): Promise<void> {
+  try {
+    const readStatus = (r: unknown): string => String((r as { status?: unknown })?.status ?? '');
+    let status = readStatus(await Notifications.getPermissionsAsync());
+    if (status !== 'granted') {
+      status = readStatus(await Notifications.requestPermissionsAsync());
+    }
+    if (status !== 'granted') return;
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    await api('/me/device-token', {
+      method: 'POST',
+      body: JSON.stringify({ expo_token: token, platform: 'android' }),
+    });
+  } catch {
+    // Push is optional during Expo Go/local development.
+  }
+}
+
+
 export async function api(path: string, opts: RequestInit = {}): Promise<any> {
   const token = await getToken();
   const headers: Record<string, string> = {
@@ -24,6 +44,8 @@ export async function api(path: string, opts: RequestInit = {}): Promise<any> {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+
 
 // RN khong co EventSource nen polling /submissions/{id} moi 2s toi khi co verdict.
 export async function pollSubmission(
