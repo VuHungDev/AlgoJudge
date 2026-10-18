@@ -51,6 +51,7 @@ class JudgeWorker extends Command
             $pv = ProblemVersion::find($job->problem_version_id);
             $tl = (int) ($pv->time_limit_ms ?? 2000);
             $checker = $pv->checker ?? 'exact';
+            $checkerCfg = $pv->checker_config ?? '';
             $rows = TestCase::where('problem_version_id', $job->problem_version_id)
                 ->where('testset_version', $job->testset_version)->orderBy('ordinal')->get();
             $runs = max(1, min(20, (int) ($job->number_of_runs ?? 1)));
@@ -91,9 +92,7 @@ class JudgeWorker extends Command
                     $verdicts[] = $v;
                     $cv = $v;
                 } else {
-                    $ok = $checker === 'float'
-                        ? Comparator::matchFloat($out, $c->expected_output)
-                        : Comparator::match($out, $c->expected_output);
+                    $ok = Comparator::check($checker, $out, $c->expected_output, $checkerCfg);
                     $cv = $ok ? 'ACCEPTED' : 'WRONG_ANSWER';
                     $verdicts[] = $cv;
                 }

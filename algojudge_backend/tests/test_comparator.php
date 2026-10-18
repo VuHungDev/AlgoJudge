@@ -21,7 +21,15 @@ $check(Comparator::aggregate(['WRONG_ANSWER', 'SYSTEM_ERROR']) === 'SYSTEM_ERROR
 $check(Comparator::aggregate(['TIME_LIMIT_EXCEEDED', 'WRONG_ANSWER']) === 'TIME_LIMIT_EXCEEDED', 'uu tien TLE truoc WA');
 $check(Comparator::matchFloat("3.14159\n", "3.1416", 1e-3), 'checker float sai so');
 $check(!Comparator::matchFloat("1.0\n", "2.0", 1e-6), 'checker float khac');
+$check(Comparator::matchSorted("3\n1\n2\n", "1\n2\n3"), 'checker sorted khac thu tu');
+$check(!Comparator::matchSorted("3\n1\n", "1\n2\n3"), 'checker sorted thieu dong');
+$check(Comparator::matchTokens("1  2\n3", "3 2 1"), 'checker tokens bo qua thu tu/xuong dong');
+$check(!Comparator::matchTokens("1 2", "1 2 2"), 'checker tokens khac so luong');
+$check(Comparator::matchRegex("12 34\n", '/^\d+ \d+$/'), 'checker regex khop mau');
+$check(!Comparator::matchRegex("abc\n", '/^\d+ \d+$/'), 'checker regex khong khop');
+$check(!Comparator::matchRegex("x", ''), 'checker regex rong -> false');
 $check(Comparator::scoreSubtasks([['group' => 'a', 'verdict' => 'ACCEPTED', 'weight' => 1], ['group' => 'b', 'verdict' => 'WRONG_ANSWER', 'weight' => 3]]) === 25, 'subtask 25 diem');
+$check(Comparator::check('sorted', "b\na\n", "a\nb"), 'check chon dung sorted');
 $check(Comparator::scoreSubtasks([['group' => 'a', 'verdict' => 'ACCEPTED', 'weight' => 2], ['group' => 'a', 'verdict' => 'WRONG_ANSWER', 'weight' => 2]]) === 0, 'subtask phai AC het nhom');
 $check(Similarity::score('print(a+b)', 'print(a+b)') > 0.9, 'giong nhau ~1');
 $check(Similarity::score('print(a+b)', 'while True: pass') < 0.3, 'khac nhau ~0');

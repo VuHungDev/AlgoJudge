@@ -35,7 +35,22 @@ Sự cố gặp và cách sửa: (1) cột `language` ENUM chưa có java/go/c �
 (3) `go build` lỗi `GOCACHE` read-only → `export GOCACHE=/tmp/gocache`;
 (4) Go fork nhiều tiến trình → pids-limit 128 + `GOMAXPROCS=1 GOPROXY=off`.
 
-## 2. Ngắt bộ thực thi giữa chừng
+## 1c. Checker tùy biến
+
+Đã bổ sung và unit-test 5 checker dùng chung cho PHP thuần và Laravel:
+
+| Checker | Mục đích |
+|---|---|
+| `exact` | So khớp dòng sau normalize |
+| `float` | Token số với epsilon 1e-6 |
+| `sorted` | Nhiều đáp án đúng, không phụ thuộc thứ tự dòng |
+| `tokens` | Nhiều đáp án đúng, không phụ thuộc thứ tự token |
+| `regex` | Output khớp `checker_config` do giảng viên đặt |
+
+`test_comparator.php`: **24/24 PASS**. Web `/teacher` và Expo Teacher đều cho
+chọn checker; regex yêu cầu mẫu và giới hạn 500 ký tự. API end-to-end cần chạy
+khi stack đã khởi động và quyền ghi database được cấp.
+
 
 Kill worker khi job đang `RUNNING` → job quá hạn lease → worker khác đưa lại
 `QUEUED` (`RETRY_PENDING`, tăng `attempt`); vượt số lần thử → `SYSTEM_ERROR`

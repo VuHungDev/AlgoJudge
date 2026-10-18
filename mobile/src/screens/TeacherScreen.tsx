@@ -6,6 +6,8 @@ import { api } from '../api';
 // compare + similarity + progress lop.
 export default function TeacherScreen() {
   const [pid, setPid] = useState('1');
+  const [checker, setChecker] = useState('exact');
+  const [checkerCfg, setCheckerCfg] = useState('/^\\d+ \\d+$/');
   const [cases, setCases] = useState('[{"input":"2 3","expected":"5","is_public":1,"group":"co-ban","weight":1}]');
   const [sid, setSid] = useState('');
   const [ra, setRa] = useState('');
@@ -22,13 +24,20 @@ export default function TeacherScreen() {
   const mkts = () =>
     show(api(`/admin/problems/${pid}/testsets`, {
       method: 'POST',
-      body: JSON.stringify({ checker: 'exact', cases: JSON.parse(cases) }),
+      body: JSON.stringify({
+        checker,
+        checker_config: checker === 'regex' ? checkerCfg : undefined,
+        cases: JSON.parse(cases),
+      }),
     }));
 
   return (
     <ScrollView style={{ padding: 16 }}>
       <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Tạo testset</Text>
       <TextInput placeholder="problem_id" value={pid} onChangeText={setPid} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
+      <Text>Checker: exact / float / sorted / tokens / regex</Text>
+      <TextInput value={checker} onChangeText={setChecker} style={{ borderWidth: 1, marginTop: 4 }} autoCapitalize="none" />
+      <TextInput placeholder="mẫu regex (nếu checker=regex)" value={checkerCfg} onChangeText={setCheckerCfg} style={{ borderWidth: 1, marginTop: 4 }} autoCapitalize="none" />
       <TextInput multiline value={cases} onChangeText={setCases} style={{ borderWidth: 1, minHeight: 100, marginTop: 8, fontFamily: 'monospace' }} />
       <Button title="Tạo testset" onPress={mkts} />
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>Chấm lại + Đối chiếu</Text>

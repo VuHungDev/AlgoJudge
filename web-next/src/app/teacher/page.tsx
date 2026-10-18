@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 export default function Teacher() {
   const [pid, setPid] = useState('1');
   const [checker, setChecker] = useState('exact');
+  const [checkerCfg, setCheckerCfg] = useState('/^\\d+ \\d+$/');
   const [cases, setCases] = useState('[{"input":"2 3","expected":"5","is_public":1,"group":"co-ban","weight":1}]');
   const [sid, setSid] = useState('');
   const [ra, setRa] = useState('');
@@ -21,7 +22,11 @@ export default function Teacher() {
   const mkts = () =>
     api(`/admin/problems/${pid}/testsets`, {
       method: 'POST',
-      body: JSON.stringify({ checker, cases: JSON.parse(cases) }),
+      body: JSON.stringify({
+        checker,
+        checker_config: checker === 'regex' ? checkerCfg : undefined,
+        cases: JSON.parse(cases),
+      }),
     }).then(show).catch((e) => setOut(String(e)));
 
   return (
@@ -33,7 +38,13 @@ export default function Teacher() {
           <select className="border p-1" value={checker} onChange={(e) => setChecker(e.target.value)}>
             <option value="exact">Khớp chính xác</option>
             <option value="float">Sai số (số thực)</option>
+            <option value="sorted">Nhiều đáp án (kệ thứ tự dòng)</option>
+            <option value="tokens">Nhiều đáp án (kệ thứ tự từ)</option>
+            <option value="regex">Mẫu regex tự đặt</option>
           </select>
+          {checker === 'regex' && (
+            <input className="border p-1 font-mono" placeholder="mẫu regex, vd. /^\d+ \d+$/" value={checkerCfg} onChange={(e) => setCheckerCfg(e.target.value)} />
+          )}
         </div>
         <textarea className="border w-full font-mono p-1" rows={5} value={cases} onChange={(e) => setCases(e.target.value)} />
         <button className="bg-green-700 text-white px-3 py-1 rounded mt-2" onClick={mkts}>Tạo testset</button>

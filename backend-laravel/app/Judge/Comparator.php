@@ -44,6 +44,40 @@ final class Comparator {
     }
     return true;
   }
+  // Checker 'sorted' (muc 17): bai co nhieu dap an dung, thu tu dong khong quan trong.
+  public static function matchSorted(string $actual, string $expected): bool {
+    $lines = fn(string $s): array => array_values(array_filter(
+      array_map('trim', explode("\n", str_replace(["\r\n", "\r"], "\n", $s))),
+      fn($l) => $l !== ''
+    ));
+    $a = $lines($actual); $b = $lines($expected);
+    sort($a); sort($b);
+    return $a === $b;
+  }
+  // Checker 'tokens' (muc 17): so sanh dang multiset token, bo qua thu tu va khoang trang/xuong dong.
+  public static function matchTokens(string $actual, string $expected): bool {
+    $tok = fn(string $s): array => preg_split('/\s+/', trim(self::normalize($s))) ?: [];
+    $a = $tok($actual); $b = $tok($expected);
+    sort($a); sort($b);
+    return $a === $b;
+  }
+  // Checker 'regex' (muc 17): $pattern do giang vien dat trong checker_config (toi da 500 ky tu).
+  public static function matchRegex(string $actual, string $pattern): bool {
+    $pattern = trim($pattern);
+    if ($pattern === '' || strlen($pattern) > 500 || str_contains($pattern, '(?e')) return false;
+    $ok = @preg_match($pattern, trim(self::normalize($actual)));
+    return $ok === 1;
+  }
+  // Chon checker theo ten + config. Ten la: exact|float|sorted|tokens|regex.
+  public static function check(string $checker, string $actual, string $expected, string $config = '', float $eps = 1e-6): bool {
+    return match ($checker) {
+      'float' => self::matchFloat($actual, $expected, $eps),
+      'sorted' => self::matchSorted($actual, $expected),
+      'tokens' => self::matchTokens($actual, $expected),
+      'regex' => self::matchRegex($actual, $config !== '' ? $config : $expected),
+      default => self::match($actual, $expected),
+    };
+  }
   // Cham theo subtask (muc 17): $cases = [['group'=>'default','verdict'=>'ACCEPTED','weight'=>1], ...].
   // Diem = tong weight nhom AC / tong weight, lam tron 0..100.
   public static function scoreSubtasks(array $cases): int {

@@ -18,11 +18,12 @@ while (true) {
       ->execute([$lease, $job['id']]);
     $pdo->commit();
 
-    $lim = $pdo->prepare('SELECT time_limit_ms, checker FROM problem_versions WHERE id=?');
+    $lim = $pdo->prepare('SELECT time_limit_ms, checker, checker_config FROM problem_versions WHERE id=?');
     $lim->execute([$job['problem_version_id']]);
     $pvrow = $lim->fetch() ?: [];
     $tl = (int)($pvrow['time_limit_ms'] ?: 2000);
     $checker = $pvrow['checker'] ?? 'exact';
+    $checkerCfg = $pvrow['checker_config'] ?? '';
     $cases = $pdo->prepare('SELECT * FROM test_cases WHERE problem_version_id=? AND testset_version=? ORDER BY ordinal');
     $cases->execute([$job['problem_version_id'], $job['testset_version']]);
     $rows = $cases->fetchAll();
@@ -45,9 +46,7 @@ while (true) {
       if ($v === 'SYSTEM_ERROR') { $verdicts[] = 'SYSTEM_ERROR'; break; }
       if ($v !== 'OK') { $verdicts[] = $v; $cv = $v; }
       else {
-        $ok = $checker === 'float'
-          ? Comparator::matchFloat($out, $c['expected_output'])
-          : Comparator::match($out, $c['expected_output']);
+        $ok = Comparator::check($checker, $out, $c['expected_output'], $checkerCfg);
         $cv = $ok ? 'ACCEPTED' : 'WRONG_ANSWER'; $verdicts[] = $cv;
       }
       $subtasks[] = ['group' => $c['group_name'] ?? 'default', 'verdict' => $cv, 'weight' => (int)($c['weight'] ?? 1)];

@@ -56,7 +56,14 @@ class AdminController extends Controller
 
     public function addTestset(Request $request, int $id)
     {
-        $data = $request->validate(['cases' => 'required|array|min:5', 'checker' => 'nullable|in:exact,float']);
+        $data = $request->validate([
+            'cases' => 'required|array|min:5',
+            'checker' => 'nullable|in:exact,float,sorted,tokens,regex',
+            'checker_config' => 'nullable|string|max:500',
+        ]);
+        if (($data['checker'] ?? null) === 'regex' && trim($data['checker_config'] ?? '') === '') {
+            return response()->json(['error' => 'checker_config required for regex'], 422);
+        }
         $p = Problem::findOrFail($id);
         $vid = $p->current_version_id;
         $ver = 'v'.time();
@@ -69,8 +76,15 @@ class AdminController extends Controller
                 'group_name' => $c['group'] ?? 'default',
             ]);
         }
-        ProblemVersion::where('id', $vid)->update(['testset_version' => $ver]
-            + (isset($data['checker']) ? ['checker' => $data['checker']] : []));
+        $upd = ['testset_version' => $ver];
+        if (isset($data['checker'])) {
+            $upd['checker'] = $data['checker'];
+            $upd['checker_config'] = $data['checker'] === 'regex' ? trim($data['checker_config'] ?? '') : null;
+            if ($data['checker'] === 'regex' && $upd['checker_config'] === '') {
+                return response()->json(['error' => 'checker_config required for regex'], 422);
+            }
+        }
+        ProblemVersion::where('id', $vid)->update($upd);
 
         return response()->json(['testset_version' => $ver], 201);
     }

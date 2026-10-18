@@ -61,9 +61,15 @@ final class ProblemRepository {
     $pdo->prepare('UPDATE problem_versions SET testset_version=? WHERE id=?')->execute([$ver, $vid]);
     return $ver;
   }
-  public static function setChecker(PDO $pdo, int $pid, string $checker): void {
-    if (!in_array($checker, ['exact', 'float'], true)) return;
-    $pdo->prepare('UPDATE problem_versions SET checker=? WHERE id=(SELECT current_version_id FROM problems WHERE id=?)')
-      ->execute([$checker, $pid]);
+  public static function setChecker(PDO $pdo, int $pid, string $checker, string $config = ''): void {
+    if (!in_array($checker, ['exact', 'float', 'sorted', 'tokens', 'regex'], true)) return;
+    if ($checker === 'regex') {
+      $config = trim($config);
+      if ($config === '' || strlen($config) > 500) return;
+    } else {
+      $config = '';
+    }
+    $pdo->prepare('UPDATE problem_versions SET checker=?, checker_config=? WHERE id=(SELECT current_version_id FROM problems WHERE id=?)')
+      ->execute([$checker, $config ?: null, $pid]);
   }
 }

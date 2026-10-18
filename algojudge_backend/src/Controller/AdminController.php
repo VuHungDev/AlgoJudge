@@ -24,7 +24,7 @@ final class AdminController {
     $cases = $body['cases'] ?? [];
     if (count($cases) < 5) Db::json(['error' => 'need >=5 cases'], 422);
     $ver = ProblemRepository::addTestset($pdo, $id, $cases);
-    if (isset($body['checker'])) ProblemRepository::setChecker($pdo, $id, $body['checker']);
+    if (isset($body['checker'])) ProblemRepository::setChecker($pdo, $id, $body['checker'], $body['checker_config'] ?? '');
     Db::json(['testset_version' => $ver], 201);
   }
   public static function rejudge(PDO $pdo, int $sid): void {

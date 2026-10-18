@@ -26,9 +26,12 @@ hay bất kỳ verdict nào quy lỗi cho người học.
 1. Chuẩn hóa CRLF → LF.
 2. `rtrim` từng dòng (bỏ khoảng trắng cuối dòng).
 3. Bỏ các dòng trống ở cuối output.
-4. So khớp từng dòng; nếu khớp hết → `match`.
-5. Nếu không khớp, thử `matchFloat` với epsilon `1e-6` (so sánh số thực theo token).
-6. `stderr` chỉ giữ bản đã lọc: tối đa 500 ký tự / 20 dòng / 2KB — không lộ dữ liệu kín.
+4. Checker `exact`: so khớp từng dòng.
+5. Checker `float`: so sánh token số với epsilon `1e-6`.
+6. Checker `sorted`: chuẩn hóa và sắp xếp các dòng, dùng cho nhiều đáp án khác thứ tự.
+7. Checker `tokens`: chuẩn hóa, sắp xếp toàn bộ token, dùng khi thứ tự từ không quan trọng.
+8. Checker `regex`: khớp output đã chuẩn hóa với `checker_config` do giảng viên đặt (tối đa 500 ký tự).
+9. `stderr` chỉ giữ bản đã lọc: tối đa 500 ký tự / 20 dòng / 2KB — không lộ dữ liệu kín.
 
 ## 3. Tổng hợp verdict
 
