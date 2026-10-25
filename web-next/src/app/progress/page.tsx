@@ -36,20 +36,20 @@ export default function ProgressPage() {
   return <div className="flex flex-col gap-5">
     <section className="relative overflow-hidden rounded-3xl border border-border bg-surface px-6 py-7 sm:px-8">
       <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
-      <Kicker>JOURNEY</Kicker>
+      <Kicker>HÀNH TRÌNH</Kicker>
       <h1 className="mt-2 text-2xl font-bold tracking-tight">Tiến độ học tập</h1>
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
       {loading ? <p className="studio-muted mt-3">Đang tải…</p> : (
         <>
-          <p className="mt-3 text-3xl font-bold"><span className="text-primary">{progress?.solved ?? 0}</span><span className="studio-muted text-xl">/{progress?.total ?? 0}</span></p>
+          <p className="mt-3 text-3xl font-bold"><span className="text-primary">{progress?.solved ?? 0}</span><span className="studio-muted text-xl">/{progress?.total ?? 0} bài</span></p>
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-surface-raised"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} /></div>
-          <p className="studio-muted mt-2 text-sm">{pct}% hành trình · Streak <b className="text-primary">{streak?.streak ?? 0}</b> ngày</p>
+          <p className="studio-muted mt-2 text-sm">{pct}% hành trình · Streak <b className="text-primary">{streak?.streak ?? 0}</b> ngày liên tiếp · tổng <b>{streak?.total_days ?? 0}</b> ngày có bài</p>
         </>
       )}
       <Btn className="mt-4" onClick={load} disabled={loading}>Làm mới</Btn>
     </section>
     <Card>
-      <Kicker>NEXT UP</Kicker>
+      <Kicker>GỢI Ý BÀI TIẾP THEO</Kicker>
       <h2 className="mt-2 text-2xl font-black">Gợi ý bài tiếp theo</h2>
       {recommend ? <>
         <p className="mt-3 text-lg font-bold">#{recommend.id} {recommend.title}</p>

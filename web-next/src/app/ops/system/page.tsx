@@ -60,7 +60,7 @@ export default function OpsSystem() {
 
       <Card>
         <div className="flex items-center justify-between">
-          <div><Kicker>Workers</Kicker><SectionTitle sub="Tự làm mới mỗi 15s">Job đang chạy ({workers.length})</SectionTitle></div>
+          <div><Kicker>Worker</Kicker><SectionTitle sub="Tự làm mới mỗi 15s">Job đang chạy ({workers.length})</SectionTitle></div>
           <Btn onClick={refresh}>🔄 Làm mới</Btn>
         </div>
         {workers.length === 0 ? (
@@ -71,7 +71,7 @@ export default function OpsSystem() {
               { head: 'Run', render: (w) => <b>#{w.id}</b> },
               { head: 'Trạng thái', render: (w) => <Badge tone="info">{w.status}</Badge> },
               { head: 'Lease hết hạn', render: (w) => <span className="text-xs text-muted">{w.lease_expires_at}</span> },
-              { head: 'Attempt', center: true, render: (w) => <Badge tone="neutral">{w.attempt}</Badge> },
+              { head: 'Số lần thử', center: true, render: (w) => <Badge tone="neutral">{w.attempt}</Badge> },
             ]}
             rows={workers}
             keyOf={(w) => w.id}

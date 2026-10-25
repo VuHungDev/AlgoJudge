@@ -158,7 +158,7 @@ export default function SolvePage({ params }: { params: Promise<{ id: string }> 
 
       <Card>
         <Kicker>Kết quả</Kicker>
-        <SectionTitle sub="Output chạy thử hoặc trạng thái chấm">Console</SectionTitle>
+        <SectionTitle sub="Output chạy thử hoặc trạng thái chấm">Bảng điều khiển</SectionTitle>
         {runResult && (
           <div className="mt-3 grid gap-2">
             <div className="flex flex-wrap items-center gap-2">
