@@ -8,5 +8,5 @@ class Clazz extends Model
 {
     protected $table = 'classes';
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'created_by'];
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Judge\Comparator;
 use App\Judge\Similarity;
+use App\Models\ActivityLog;
 use App\Models\CaseResult;
 use App\Models\JudgingRun;
 use App\Models\Problem;
@@ -20,14 +21,22 @@ class SubmissionController extends Controller
     {
         $data = $request->validate([
             'language' => 'nullable|string',
-            'source_code' => 'nullable|string|max:100000',
+            'source_code' => 'nullable|string|max:1048576',
             'stdin' => 'nullable|string|max:65536',
+            'problem_version_id' => 'nullable|integer',
         ]);
+        $tl = 2000;
+        if (! empty($data['problem_version_id'])) {
+            $pv = ProblemVersion::find($data['problem_version_id']);
+            if ($pv) {
+                $tl = (int) min(max((int) ($pv->time_limit_ms ?? 2000), 500), 30000);
+            }
+        }
         [$v, $out, $err] = JudgeService::runCase(
             $data['language'] ?? 'python',
-            substr($data['source_code'] ?? '', 0, 100000),
+            substr($data['source_code'] ?? '', 0, 1048576),
             substr($data['stdin'] ?? '', 0, 65536),
-            2000
+            $tl
         );
 
         return response()->json([
@@ -49,7 +58,7 @@ class SubmissionController extends Controller
         $data = $request->validate([
             'problem_version_id' => 'required|integer',
             'language' => 'required|string',
-            'source_code' => 'required|string|max:100000',
+            'source_code' => 'required|string|max:1048576',
             'number_of_runs' => 'nullable|integer|min:1|max:20',
             'compiler_options' => 'nullable|string|max:512',
             'command_line_arguments' => 'nullable|string|max:512',
@@ -92,6 +101,11 @@ class SubmissionController extends Controller
             if (! $pv) {
                 abort(404, 'not found');
             }
+            // Gioi han source theo bai (bai phuc tap cho phep source lon hon).
+            $srcKb = (int) min(max((int) ($pv->source_limit_kb ?? 100), 10), 1024);
+            if (strlen($code) > $srcKb * 1024) {
+                abort(422, 'source too large');
+            }
             $s = Submission::create([
                 'user_id' => $request->user()->id,
                 'problem_version_id' => $data['problem_version_id'],
@@ -112,6 +126,11 @@ class SubmissionController extends Controller
 
             return ['submission_id' => $s->id, 'deduplicated' => false];
         });
+
+        if (! ($res['deduplicated'] ?? false)) {
+            ActivityLog::record('submit', 'submission', $res['submission_id'],
+                ['pv_id' => $data['problem_version_id'], 'lang' => $data['language']]);
+        }
 
         if ($request->boolean('wait', false)) {
             $t0 = time();
@@ -225,11 +244,15 @@ class SubmissionController extends Controller
 
     public function history(Request $request)
     {
-        $rows = Submission::with('currentRun')
+        $per = (int) min(max((int) $request->query('per_page', 10), 1), 50);
+        $p = Submission::with('currentRun')
             ->where('user_id', $request->user()->id)
-            ->orderByDesc('id')->limit(50)->get();
+            ->orderByDesc('id')->paginate($per);
 
-        return response()->json(['submissions' => $rows]);
+        return response()->json([
+            'submissions' => $p->items(),
+            'meta' => ['page' => $p->currentPage(), 'per_page' => $p->perPage(), 'total' => $p->total(), 'last_page' => $p->lastPage()],
+        ]);
     }
 
     public function progress(Request $request)
@@ -263,9 +286,11 @@ class SubmissionController extends Controller
             return response()->json(['error' => 'not found'], 404);
         }
 
+        // SSE giu toi da 20s moi ket noi: client tu mo lai (watchSubmission fallback
+        // polling 1.5s). Giu ngan de khong doi het tien trinh Apache prefork khi mo nhieu tab.
         return response()->stream(function () use ($id) {
             $t0 = time();
-            while (time() - $t0 < 60) {
+            while (time() - $t0 < 20) {
                 $jr = JudgingRun::where('submission_id', $id)->where('is_current', 1)->first();
                 $safe = $jr ? $jr->only(['id', 'status', 'verdict', 'score', 'attempt']) : ['status' => 'UNKNOWN'];
                 echo 'data: '.json_encode($safe)."\n\n";
@@ -278,7 +303,7 @@ class SubmissionController extends Controller
                 }
                 sleep(2);
             }
-        }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
+        }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'Connection' => 'keep-alive', 'X-Accel-Buffering' => 'no']);
     }
 
     public function similarity(Request $request, int $a, int $b)

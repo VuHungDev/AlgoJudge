@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Contest;
+use App\Models\ContestAccess;
 use App\Models\ContestProblem;
 use App\Models\Problem;
 use App\Models\Submission;
@@ -14,15 +16,39 @@ use Illuminate\Support\Facades\DB;
 // Phase 4: contest co gio + leaderboard realtime + streak + goi y bai.
 class ContestController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(['contests' => Contest::orderByDesc('id')->get()]);
+        $per  = (int) min(max((int) $request->query('per_page', 10), 1), 50);
+        $user = $request->user();
+        $role = $user?->role ?? 'guest';
+
+        $q = Contest::orderByDesc('id');
+        // Student chi thay contest is_public hoac co trong contest_access.
+        if ($user && $role === 'student') {
+            $q->where(function ($w) use ($user) {
+                $w->where('is_public', true)
+                  ->orWhereExists(function ($sub) use ($user) {
+                      $sub->from('contest_access')
+                          ->whereColumn('contest_access.contest_id', 'contests.id')
+                          ->where('contest_access.user_id', $user->id);
+                  });
+            });
+        }
+
+        $p = $q->paginate($per);
+        return response()->json([
+            'contests' => $p->items(),
+            'meta' => ['page' => $p->currentPage(), 'per_page' => $p->perPage(), 'total' => $p->total(), 'last_page' => $p->lastPage()],
+        ]);
     }
 
-    public function show(int $id)
+    public function show(int $id, Request $request)
     {
         $c = Contest::with('problems')->find($id);
-        if (! $c) {
+        if (! $c) return response()->json(['error' => 'not found'], 404);
+
+        $user = $request->user();
+        if ($user && ! $c->isAccessibleBy($user->id, $user->role)) {
             return response()->json(['error' => 'not found'], 404);
         }
 
@@ -32,26 +58,99 @@ class ContestController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'title' => 'required|string|max:255',
+            'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
-            'starts_at' => 'required|date',
-            'ends_at' => 'required|date|after:starts_at',
-            'problems' => 'required|array|min:1',
+            'starts_at'   => 'required|date',
+            'ends_at'     => 'required|date|after:starts_at',
+            'is_public'   => 'nullable|boolean',
+            'user_ids'    => 'nullable|array',   // danh sach user duoc phep (khi is_public = false)
+            'user_ids.*'  => 'integer',
+            'problems'    => 'required|array|min:1',
             'problems.*.problem_version_id' => 'required|integer',
-            'problems.*.points' => 'nullable|integer|min:1',
+            'problems.*.points'             => 'nullable|integer|min:1',
         ]);
         $c = Contest::create([
-            'title' => $data['title'], 'description' => $data['description'] ?? '',
-            'starts_at' => $data['starts_at'], 'ends_at' => $data['ends_at'],
+            'title'       => $data['title'],
+            'description' => $data['description'] ?? '',
+            'starts_at'   => $data['starts_at'],
+            'ends_at'     => $data['ends_at'],
+            'is_public'   => $data['is_public'] ?? false,
+            'created_by'  => $request->user()->id,
         ]);
         foreach ($data['problems'] as $i => $p) {
             ContestProblem::create([
-                'contest_id' => $c->id, 'problem_version_id' => $p['problem_version_id'],
-                'points' => $p['points'] ?? 100, 'ordinal' => $i + 1,
+                'contest_id'         => $c->id,
+                'problem_version_id' => $p['problem_version_id'],
+                'points'             => $p['points'] ?? 100,
+                'ordinal'            => $i + 1,
             ]);
         }
-
+        // Them danh sach user duoc phep (khi is_public = false)
+        if (! ($data['is_public'] ?? false) && ! empty($data['user_ids'])) {
+            foreach (array_unique($data['user_ids']) as $uid) {
+                ContestAccess::firstOrCreate(['contest_id' => $c->id, 'user_id' => (int) $uid]);
+            }
+        }
+        ActivityLog::record('create_contest', 'contest', $c->id, $c->title);
         return response()->json(['contest_id' => $c->id], 201);
+    }
+
+    // Sua contest (tieu de, mo ta, thoi gian, is_public, danh sach user).
+    public function update(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'title'       => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'starts_at'   => 'nullable|date',
+            'ends_at'     => 'nullable|date',
+            'is_public'   => 'nullable|boolean',
+            'user_ids'    => 'nullable|array',
+            'user_ids.*'  => 'integer',
+        ]);
+        $c = Contest::findOrFail($id);
+        $c->fill(array_filter($data, fn ($v) => $v !== null && ! in_array(gettype($v), ['array'])));
+        if (isset($data['is_public'])) $c->is_public = $data['is_public'];
+        $c->save();
+
+        if (isset($data['user_ids'])) {
+            ContestAccess::where('contest_id', $c->id)->delete();
+            foreach (array_unique($data['user_ids']) as $uid) {
+                ContestAccess::create(['contest_id' => $c->id, 'user_id' => (int) $uid]);
+            }
+        }
+        ActivityLog::record('update_contest', 'contest', $c->id, $c->title);
+        return response()->json(['ok' => true]);
+    }
+
+    // Xoa contest (kem bai thi va danh sach access).
+    public function destroy(int $id)
+    {
+        $c = Contest::findOrFail($id);
+        ContestProblem::where('contest_id', $c->id)->delete();
+        ContestAccess::where('contest_id', $c->id)->delete();
+        $c->delete();
+        ActivityLog::record('delete_contest', 'contest', $id);
+        return response()->json(['ok' => true]);
+    }
+
+    // Xem / thay the danh sach user duoc phep (GET/PUT /admin/contests/{id}/access).
+    public function accessList(int $id)
+    {
+        $c = Contest::findOrFail($id);
+        $users = ContestAccess::where('contest_id', $c->id)->pluck('user_id');
+        return response()->json(['contest_id' => $id, 'is_public' => (bool) $c->is_public, 'user_ids' => $users]);
+    }
+
+    public function accessSet(Request $request, int $id)
+    {
+        $data = $request->validate(['user_ids' => 'required|array', 'user_ids.*' => 'integer']);
+        $c = Contest::findOrFail($id);
+        ContestAccess::where('contest_id', $c->id)->delete();
+        foreach (array_unique($data['user_ids']) as $uid) {
+            ContestAccess::create(['contest_id' => $c->id, 'user_id' => (int) $uid]);
+        }
+        ActivityLog::record('set_contest_access', 'contest', $c->id, ['count' => count($data['user_ids'])]);
+        return response()->json(['ok' => true, 'count' => count($data['user_ids'])]);
     }
 
     // Leaderboard: tong diem (AC dau tien moi bai contest) + so bai giai + thoi gian AC cuoi.
