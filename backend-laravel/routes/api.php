@@ -85,13 +85,55 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/languages', function () {
         return response()->json(['languages' => [
-            ['id' => 1, 'name' => 'Python (3.12)', 'source_file' => 'main.py', 'compile_cmd' => null, 'run_cmd' => 'python3 main.py'],
-            ['id' => 2, 'name' => 'C++ (GCC 13)', 'source_file' => 'main.cpp', 'compile_cmd' => 'g++ -O2 -std=c++17 -o /tmp/a main.cpp', 'run_cmd' => '/tmp/a'],
-            ['id' => 3, 'name' => 'JavaScript (Node 22)', 'source_file' => 'main.js', 'compile_cmd' => null, 'run_cmd' => 'node main.js'],
-            ['id' => 4, 'name' => 'Java (Temurin 17)', 'source_file' => 'Main.java', 'compile_cmd' => 'javac Main.java', 'run_cmd' => 'java Main'],
-            ['id' => 5, 'name' => 'Go (1.22)', 'source_file' => 'main.go', 'compile_cmd' => 'go build -o /tmp/a main.go', 'run_cmd' => '/tmp/a'],
-            ['id' => 6, 'name' => 'C (GCC 13)', 'source_file' => 'main.c', 'compile_cmd' => 'gcc -O2 -std=c17 -o /tmp/a main.c', 'run_cmd' => '/tmp/a'],
-            ['id' => 7, 'name' => 'PHP (8.2)', 'source_file' => 'main.php', 'compile_cmd' => null, 'run_cmd' => 'php main.php'],
+            [
+                'id' => 1, 'name' => 'Python (3.12)', 'key' => 'python',
+                'source_file' => 'main.py', 'compile_cmd' => null, 'run_cmd' => 'python3 main.py',
+                'version' => 'Python 3.12.15 / GCC 14.2.0',
+                'stdlib' => 'math, collections, itertools, functools, heapq, bisect, re, json, decimal, fractions, statistics, string, operator, random, datetime, time, io, struct, hashlib, base64, copy, typing, dataclasses, enum, csv, pathlib, queue, array',
+                'packages' => 'Không có thư viện ngoài (numpy, scipy không cài). Chỉ dùng thư viện chuẩn.',
+            ],
+            [
+                'id' => 2, 'name' => 'C++ (GCC 13)', 'key' => 'cpp',
+                'source_file' => 'main.cpp', 'compile_cmd' => 'g++ -O2 -std=c++17 -o /tmp/a main.cpp', 'run_cmd' => '/tmp/a',
+                'version' => 'GCC 13.5.0 / Debian Bookworm',
+                'stdlib' => 'Toàn bộ STL C++17: <bits/stdc++.h>, <algorithm>, <vector>, <map>, <set>, <queue>, <stack>, <string>, <iostream>, <sstream>, <fstream>, <numeric>, <functional>, <regex>, <thread>, <chrono>',
+                'packages' => 'libgmp 6.2.1 (đa độ chính xác), libmpfr 4.2.0 (dấu phẩy động chính xác cao)',
+            ],
+            [
+                'id' => 3, 'name' => 'JavaScript (Node 22)', 'key' => 'js',
+                'source_file' => 'main.js', 'compile_cmd' => null, 'run_cmd' => 'node main.js',
+                'version' => 'Node.js 22.23.3',
+                'stdlib' => 'fs, path, os, url, util, stream, events, readline, buffer, crypto, assert, http (không dùng được do --network none), process',
+                'packages' => 'Không có npm package ngoài. Chỉ Node.js built-in modules.',
+            ],
+            [
+                'id' => 4, 'name' => 'Java (Temurin 17)', 'key' => 'java',
+                'source_file' => 'Main.java', 'compile_cmd' => 'javac Main.java', 'run_cmd' => 'java Main',
+                'version' => 'OpenJDK 17.0.20.1 (Eclipse Temurin) / Ubuntu Jammy',
+                'stdlib' => 'java.util.*, java.util.stream, java.io.*, java.math.BigInteger/BigDecimal, java.util.Collections, java.util.Arrays, java.util.Scanner, java.lang.*',
+                'packages' => 'Chỉ JDK 17 standard library. Không có thư viện ngoài.',
+            ],
+            [
+                'id' => 5, 'name' => 'Go (1.22)', 'key' => 'go',
+                'source_file' => 'main.go', 'compile_cmd' => 'go build -o /tmp/a main.go', 'run_cmd' => '/tmp/a',
+                'version' => 'Go 1.22.12 / Debian Bookworm',
+                'stdlib' => 'fmt, bufio, os, io, strings, strconv, sort, math, math/big, math/rand, regexp, encoding/json, time, sync, errors, unicode, bytes, container/heap, container/list',
+                'packages' => 'Chỉ Go standard library. Không có go module ngoài (GOPROXY=off).',
+            ],
+            [
+                'id' => 6, 'name' => 'C (GCC 13)', 'key' => 'c',
+                'source_file' => 'main.c', 'compile_cmd' => 'gcc -O2 -std=c17 -o /tmp/a main.c', 'run_cmd' => '/tmp/a',
+                'version' => 'GCC 13.5.0 / Debian Bookworm',
+                'stdlib' => '<stdio.h>, <stdlib.h>, <string.h>, <math.h>, <ctype.h>, <limits.h>, <float.h>, <stdbool.h>, <stdint.h>, <assert.h>, <time.h>',
+                'packages' => 'libgmp 6.2.1 (đa độ chính xác), libmpfr 4.2.0. Cần #include <gmp.h> và -lgmp khi compile.',
+            ],
+            [
+                'id' => 7, 'name' => 'PHP (8.2)', 'key' => 'php',
+                'source_file' => 'main.php', 'compile_cmd' => null, 'run_cmd' => 'php main.php',
+                'version' => 'PHP 8.2.34 (CLI, NTS)',
+                'stdlib' => 'Core, SPL, standard, json, mbstring, pcre, ctype, date, random, hash, iconv, filter, posix, readline, Reflection, sodium, openssl, PDO, pdo_sqlite, sqlite3, SimpleXML, dom, xml, tokenizer, zlib, OPcache',
+                'packages' => 'Chỉ PHP built-in extensions. Không có Composer package, không có bcmath/gmp.',
+            ],
         ]]);
     });
     Route::get('/statuses', function () {
