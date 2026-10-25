@@ -47,6 +47,7 @@ const NAV_BY_ROLE: NavMap = {
     { href: '/assignments', label: 'Bài được giao',   icon: 'clip',  section: 'HỌC TẬP' },
     { href: '/progress',    label: 'Tiến độ học tập', icon: 'chart', section: 'HỌC TẬP' },
     { href: '/contests',    label: 'Kỳ thi',          icon: 'cup',   section: 'HỌC TẬP' },
+    { href: '/playground',  label: 'Sân tập tự do',    icon: 'pen',   section: 'HỌC TẬP' },
     { href: '/profile',     label: 'Hồ sơ cá nhân',  icon: 'user',  section: 'TÀI KHOẢN' },
   ],
   teacher: [

@@ -43,6 +43,20 @@ class OjSeeder extends Seeder
             ['tim-vi-tri', 'Tìm vị trí', 'mang', 'hard', 'Cho n, n số, rồi x. In ra vị trí đầu tiên (1-based) của x trong mảng, hoặc -1 nếu không có.', [["5\n1 3 5 7 9\n3", '2', 1], ["3\n1 2 3\n4", '-1', 0], ["1\n5\n5", '1', 0], ["6\n2 2 2 2 2 2\n2", '1', 0], ["4\n10 20 30 40\n40", '4', 0]]],
             ['kiem-tra-parenthesis', 'Ngoặc cân bằng', 'nganxep', 'hard', 'Cho chuỗi gồm (,),{,},[,]. In YES nếu ngoặc cân bằng, NO nếu không. Chuỗi rỗng cân bằng.', [['()', 'YES', 1], ['([)]', 'NO', 0], ['{[()]}', 'YES', 0], ['(((', 'NO', 0], ['', 'YES', 0]]],
             ['so-thuan-nghich', 'Số thuận nghịch', 'toan', 'hard', 'Cho n (0≤n≤10^9), in YES nếu n là số thuận nghịch (đọc xuôi ngược giống nhau), NO nếu không.', [['121', 'YES', 1], ['123', 'NO', 0], ['0', 'YES', 0], ['12321', 'YES', 0], ['10', 'NO', 0]]],
+            // ---- 10 bài luyện tập nâng cao (học sinh tự gõ code, không có code mẫu) ----
+            // Easy (4)
+            ['tong-chan', 'Tổng số chẵn', 'toan', 'easy', 'Cho n (n≥2), in ra tổng các số chẵn từ 2 đến n.', [['2', '2', 1], ['4', '6', 0], ['10', '30', 0], ['1', '0', 0], ['100', '2550', 0]]],
+            ['dem-am-duong', 'Đếm âm dương', 'mang', 'easy', 'Dòng 1: n. Dòng 2: n số nguyên. In ra 2 số: số âm, số dương (cách nhau dấu cách).', [["3\n-1 0 2", '1 1', 1], ["4\n-1 -2 -3 -4", '4 0', 0], ["2\n0 0", '0 0', 0], ["5\n1 2 3 4 5", '0 5', 0], ["1\n-100", '1 0', 0]]],
+            ['max-tuyet-doi', 'Giá trị tuyệt đối lớn nhất', 'toan', 'easy', 'Cho n rồi n số nguyên. In ra giá trị tuyệt đối lớn nhất trong các số.', [["3\n-5 2 -9", '9', 1], ["1\n-100", '100', 0], ["2\n5 5", '5', 0], ["4\n-1 0 1 2", '2', 0], ["1\n0", '0', 0]]],
+            ['vi-tri-dau-tien', 'Vị trí số âm đầu tiên', 'mang', 'easy', 'Cho n rồi n số. In ra vị trí (1-based) của số âm đầu tiên, hoặc -1 nếu không có.', [["3\n1 -2 3", '2', 1], ["2\n1 2", '-1', 0], ["1\n-5", '1', 0], ["4\n0 0 -1 0", '3', 0], ["3\n-1 -2 -3", '1', 0]]],
+            // Medium (3)
+            ['chuyen-he-2', 'Chuyển sang nhị phân', 'toan', 'medium', 'Cho số nguyên không âm n (0≤n≤10^18), in ra biểu diễn nhị phân của n.', [['0', '0', 1], ['1', '1', 0], ['10', '1010', 0], ['255', '11111111', 0], ['1000000', '11110100001001000000', 0]]],
+            ['kiem-tra-tam-giac', 'Kiểm tra tam giác', 'hinh', 'medium', 'Cho 3 số a b c. In RA nếu 3 cạnh lập thành tam giác (tổng 2 cạnh > cạnh còn lại), KHONG nếu không.', [['3 4 5', 'RA', 1], ['1 2 3', 'KHONG', 0], ['5 5 5', 'RA', 0], ['1 1 3', 'KHONG', 0], ['7 10 5', 'RA', 0]]],
+            ['tong-cac-chu-so', 'Tổng chữ số', 'toan', 'medium', 'Cho n (0≤n≤10^18), in ra tổng các chữ số của n.', [['0', '0', 1], ['123', '6', 0], ['999', '27', 0], ['10', '1', 0], ['1000000000', '1', 0]]],
+            // Hard (3)
+            ['sap-xep-chon', 'Sắp xếp chọn', 'thuat-toan', 'hard', 'Cho n rồi n số. In ra mảng sau khi sắp xếp tăng dần (dùng thuật toán sắp xếp chọn).', [["5\n5 3 1 4 2", '1 2 3 4 5', 1], ["1\n5", '5', 0], ["3\n-1 -2 -3", '-3 -2 -1', 0], ["4\n0 0 0 0", '0 0 0 0', 0], ["2\n100 -100", '-100 100', 0]]],
+            ['nhi-phan-tuan-tu', 'Tìm kiếm nhị phân', 'thuat-toan', 'hard', 'Dòng 1: n. Dòng 2: n số đã sắp xếp tăng. Dòng 3: x. In ra vị trí (1-based) của x, hoặc -1.', [["5\n1 3 5 7 9\n3", '2', 1], ["3\n1 2 3\n4", '-1', 0], ["1\n5\n5", '1', 0], ["6\n1 2 3 4 5 6\n1", '1', 0], ["4\n10 20 30 40\n40", '4', 0]]],
+            ['dem-phan-tu-khac', 'Đếm phần tử khác nhau', 'mang', 'hard', 'Cho n rồi n số. In ra số phần tử khác nhau trong mảng.', [["5\n1 2 2 3 3", '3', 1], ["1\n5", '1', 0], ["3\n1 1 1", '1', 0], ["4\n1 2 3 4", '4', 0], ["6\n-1 0 1 0 -1 1", '3', 0]]],
         ];
         foreach ($problems as [$slug, $title, $topic, $diff, $stmt, $cases]) {
             $p = Problem::firstOrCreate(['slug' => $slug], [
