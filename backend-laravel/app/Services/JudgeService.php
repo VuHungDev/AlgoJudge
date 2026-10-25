@@ -17,35 +17,41 @@ class JudgeService
         if ($lang === 'python') {
             $img = 'oj-sandbox-python';
             $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.py && python3 ./main.py'.($cmdArgs !== '' ? ' '.$cmdArgs : '');
-            $tmpfs = '/tmp:rw,nosuid,size=64m';
+            $tmpfs = '/tmp:rw,nosuid,size=128m';
         } elseif ($lang === 'js') {
             $img = 'oj-sandbox-js';
-            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.js && node ./main.js'.($cmdArgs !== '' ? ' '.$cmdArgs : '');
-            $tmpfs = '/tmp:rw,nosuid,size=64m';
+            // NODE_PATH cho phep require('lodash'), require('mathjs')... tu thu muc global npm
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.js && node --max-old-space-size=256 ./main.js'.($cmdArgs !== '' ? ' '.$cmdArgs : '');
+            $tmpfs = '/tmp:rw,nosuid,size=128m';
         } elseif ($lang === 'java') {
             $img = 'oj-sandbox-java';
             $copts = self::cleanOpt($compilerOptions);
-            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./Main.java && javac '.($copts !== '' ? $copts.' ' : '').'./Main.java 2>./ce.txt && java Main'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
-            $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
+            // CLASSPATH=/usr/local/java-lib/* da set trong image cho phep dung Guava, Commons
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./Main.java && javac '.($copts !== '' ? $copts.' ' : '').'./Main.java 2>./ce.txt && java -cp ".:/usr/local/java-lib/*" Main'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
+            $tmpfs = '/tmp:rw,exec,nosuid,size=256m';
         } elseif ($lang === 'go') {
             $img = 'oj-sandbox-go';
             $copts = self::cleanOpt($compilerOptions);
-            $sh = 'export GOCACHE=/tmp/gocache GOFLAGS=-mod=mod GOPROXY=off GOMAXPROCS=1 && printf "%s" "$OJ_CODE" | base64 -d > ./main.go && go build -p 1 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.go 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
-            $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
+            // Copy go.mod + go.sum tu /gotemplate vao thu muc build, cho phep dung golang.org/x/exp, gods... offline
+            $sh = 'export GOCACHE=/tmp/gocache GOPROXY=off GOMODCACHE=/gomodcache GOMAXPROCS=1 && mkdir -p ./goproj && cp /gotemplate/go.mod ./goproj/ && cp /gotemplate/go.sum ./goproj/ && printf "%s" "$OJ_CODE" | base64 -d > ./goproj/main.go && cd ./goproj && go build -p 1 '.($copts !== '' ? $copts.' ' : '').'-o ../a . 2>../ce.txt && cd .. && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
+            $tmpfs = '/tmp:rw,exec,nosuid,size=256m';
         } elseif ($lang === 'c') {
             $img = 'oj-sandbox-c';
             $copts = self::cleanOpt($compilerOptions);
-            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.c && gcc -O2 -std=c17 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.c 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
+            // -lgmp cho phep #include <gmp.h>; -lmpfr cho phep #include <mpfr.h>
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.c && gcc -O2 -std=c17 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.c -lgmp -lmpfr 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
             $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
         } elseif ($lang === 'php') {
             $img = 'oj-sandbox-php';
-            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.php && php ./main.php'.($cmdArgs !== '' ? ' '.$cmdArgs : '');
-            $tmpfs = '/tmp:rw,nosuid,size=64m';
+            // COMPOSER_VENDOR_DIR=/vendor/vendor cho phep require vendor autoload
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.php && php -d extension=gmp -d extension=bcmath ./main.php'.($cmdArgs !== '' ? ' '.$cmdArgs : '');
+            $tmpfs = '/tmp:rw,nosuid,size=128m';
         } else {
             $img = 'oj-sandbox-cpp';
             $copts = self::cleanOpt($compilerOptions);
-            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.cpp && g++ -O2 -std=c++17 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.cpp 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
-            $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
+            // -lgmp -lmpfr cho phep dung GMP/MPFR; Boost/Eigen/nlohmann da cai trong image
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.cpp && g++ -O2 -std=c++17 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.cpp -lgmp -lgmpxx -lmpfr 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
+            $tmpfs = '/tmp:rw,exec,nosuid,size=256m';
         }
         // Go runtime can thread (clone) ke ca chuong trinh don gian -> pids-limit cao hon.
         // Java can nhieu tien trinh hon Python/JS luc JVM khoi dong.

@@ -1,4 +1,8 @@
 FROM gcc:13-bookworm
-# Sandbox C (mo rong muc 17): dung chung image GCC voi C++, khong mang khi chay.
-WORKDIR /tmp
-USER nobody
+# Cai thu vien pho bien cho C: GMP, MPFR
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgmp-dev \
+    libgmpxx4ldbl \
+    libmpfr-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN useradd -m nobody2 || true
