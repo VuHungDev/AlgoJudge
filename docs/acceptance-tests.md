@@ -1,12 +1,11 @@
 # Phép thử bắt buộc (Acceptance Tests)
 
-Backend chính: **PHP** (PHP thuần `:8080` và Laravel `:8081` chạy song song,
-cùng contract `/api/v1`). Dưới đây là minh chứng đã chạy thật (2026-10-17).
+Backend chính: **Laravel** (`:8081`, contract `/api/v1`). Dưới đây là minh chứng đã chạy thật (2026-10-17).
 
 ## 1. Năm verdict khác nhau
 
 Dữ liệu: 5 bài × 5 solutions (`ok`, `wrong_algo`, `syntax_err`, `runtime_err`,
-`infinite`) trong `algojudge_backend/data/`.
+`infinite`) trong `backend-laravel/data/`.
 
 | Mã nộp | Verdict mong đợi | Kết quả |
 |---|---|---|

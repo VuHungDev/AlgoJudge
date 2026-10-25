@@ -11,35 +11,8 @@ services:
     ports:
       - "3306:3306"
 
+  # Backend duy nhat (Laravel). Du lieu mau o backend-laravel/data, sandbox o backend-laravel/sandbox.
   api:
-    build: ./algojudge_backend
-    env_file: .env
-    depends_on:
-      - db
-    ports:
-      - "${API_PORT:-8080}:80"
-    volumes:
-      - ./algojudge_backend:/var/www/html
-
-  worker:
-    build: ./algojudge_backend
-    env_file: .env
-    depends_on:
-      - db
-    command: ["php", "/var/www/html/worker/worker.php"]
-    volumes:
-      - ./algojudge_backend:/var/www/html
-      - /var/run/docker.sock:/var/run/docker.sock
-
-  web:
-    image: nginx:alpine
-    ports:
-      - "${WEB_PORT:-3000}:80"
-    volumes:
-      - ./algojudge_ui:/usr/share/nginx/html:ro
-
-  # Laravel song song (Phase 1 hien dai hoa). DB rieng oj_laravel de khong vo PHP thuan.
-  laravel:
     build: ./backend-laravel
     env_file: .env
     depends_on:
@@ -48,8 +21,13 @@ services:
       - "${LARAVEL_PORT:-8081}:80"
     volumes:
       - ./backend-laravel:/var/www/html
+      # Nut "Chay thu" (/run) goi sandbox truc tiep tu tien trinh web (www-data),
+      # can socket docker nhu worker.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # vendor tren named volume (ext4 trong VM): tranh stat hang nghin file qua o Windows.
+      - laravel_vendor:/var/www/html/vendor
 
-  laravel-worker:
+  worker:
     build: ./backend-laravel
     env_file: .env
     depends_on:
@@ -57,17 +35,48 @@ services:
     command: ["php", "/var/www/html/artisan", "judge:work"]
     volumes:
       - ./backend-laravel:/var/www/html
+      - laravel_vendor:/var/www/html/vendor
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # Web Next.js (Phase 2). Web tinh cu (algojudge_ui) van giu tren WEB_PORT.
-  web-next:
+  # Web Next.js.
+  # Production (mac dinh): docker compose up web
+  # Dev hot-reload:        docker compose --profile dev up web-dev
+  web:
     build: ./web-next
     depends_on:
-      - laravel
+      - api
     ports:
       - "${WEB_NEXT_PORT:-3001}:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8081/api/v1
+    develop:
+      watch:
+        - action: rebuild
+          path: ./web-next
+          ignore:
+            - node_modules
+            - .next
+
+  web-dev:
+    build:
+      context: ./web-next
+      target: deps
+    profiles: ["dev"]
+    depends_on:
+      - api
+    ports:
+      - "${WEB_NEXT_PORT:-3001}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8081/api/v1
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./web-next:/app
+      - web_next_nm:/app/node_modules
+    command: ["npm", "run", "dev"]
 
 volumes:
   dbdata:
+  # vendor Laravel tren ext4: doc nhanh, khong phu thuoc toc do o Windows.
+  laravel_vendor:
+  # node_modules web-next tren named volume (ext4): tranh stat hang nghin file qua o Windows.
+  web_next_nm:
