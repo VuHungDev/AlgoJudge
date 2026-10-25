@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "AlgoJudge",
+    "slug": "algojudge",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-secure-store",
+      "expo-notifications"
+    ],
+    "android": {
+      "permissions": ["POST_NOTIFICATIONS"]
+    }
+  }
+}
