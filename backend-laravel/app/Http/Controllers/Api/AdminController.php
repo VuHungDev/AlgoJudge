@@ -164,6 +164,11 @@ class AdminController extends Controller
     {
         $data = $request->validate(['name' => 'required|string|max:255']);
         $c = Clazz::create(['name' => $data['name'], 'created_by' => $request->user()->id]);
+        // Tu dong them nguoi tao vao lop voi role teacher (de GV co the quan ly lop do).
+        DB::table('class_members')->updateOrInsert(
+            ['class_id' => $c->id, 'user_id' => $request->user()->id],
+            ['role' => $request->user()->role === 'admin' ? 'teacher' : 'teacher']
+        );
         ActivityLog::record('create_class', 'class', $c->id, $c->name);
 
         return response()->json(['class_id' => $c->id], 201);
@@ -186,6 +191,7 @@ class AdminController extends Controller
 
     public function addMember(Request $request, int $cid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         $data = $request->validate(['email' => 'required|email', 'role' => 'nullable|string']);
         $u = User::where('email', $data['email'])->first();
         if (! $u) {
@@ -202,6 +208,7 @@ class AdminController extends Controller
     // Sua ten lop.
     public function updateClass(Request $request, int $cid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         $data = $request->validate(['name' => 'required|string|max:255']);
         $c = Clazz::findOrFail($cid);
         $c->name = $data['name'];
@@ -213,6 +220,7 @@ class AdminController extends Controller
     // Xoa lop (kem thanh vien).
     public function deleteClass(int $cid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         Clazz::findOrFail($cid);
         DB::table('class_members')->where('class_id', $cid)->delete();
         Clazz::where('id', $cid)->delete();
@@ -222,6 +230,7 @@ class AdminController extends Controller
 
     public function classProgress(Request $request, int $cid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         $per = (int) min(max((int) $request->query('per_page', 10), 1), 50);
         $page = (int) max((int) $request->query('page', 1), 1);
         $makeBase = fn () => DB::table('class_members as m')->join('users as u', 'u.id', '=', 'm.user_id')
@@ -242,6 +251,7 @@ class AdminController extends Controller
     // Danh sach thanh vien 1 lop (phan trang).
     public function listMembers(Request $request, int $cid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         $per = (int) min(max((int) $request->query('per_page', 10), 1), 50);
         $p = DB::table('class_members as m')->join('users as u', 'u.id', '=', 'm.user_id')
             ->where('m.class_id', $cid)
@@ -257,6 +267,7 @@ class AdminController extends Controller
     // Xoa hoc sinh khoi lop.
     public function removeMember(int $cid, int $uid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         DB::table('class_members')->where('class_id', $cid)->where('user_id', $uid)->delete();
 
         return response()->json(['ok' => true]);
@@ -291,6 +302,7 @@ class AdminController extends Controller
     // Danh sach giao bai cua 1 lop (GV theo doi).
     public function classAssignments(Request $request, int $cid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         $per = (int) min(max((int) $request->query('per_page', 10), 1), 50);
         $p = Assignment::where('class_id', $cid)->orderByDesc('id')->paginate($per);
 
@@ -398,6 +410,7 @@ class AdminController extends Controller
     // Cham diem + nhan xet cua GV tren 1 bai nop.
     public function review(Request $request, int $sid)
     {
+        if ($deny = $this->denyUnlessGrades($sid)) return $deny;
         $data = $request->validate([
             'score' => 'nullable|integer|min:0|max:100',
             'comment' => 'nullable|string|max:2000',
@@ -414,7 +427,40 @@ class AdminController extends Controller
 
     public function getReview(int $sid)
     {
+        if ($deny = $this->denyUnlessGrades($sid)) return $deny;
         return response()->json(Review::where('submission_id', $sid)->first() ?? (object) []);
+    }
+
+    // GV: bai nop cua hoc sinh trong 1 lop GV phu trach (kem diem/nhan xet da cham).
+    // Admin xem duoc moi lop; GV chi xem lop minh la teacher/assistant -> 404 neu khong.
+    public function teacherClassSubmissions(Request $request, int $cid)
+    {
+        $user = $request->user();
+        if ($user->role !== 'admin') {
+            $ok = DB::table('class_members')->where('class_id', $cid)->where('user_id', $user->id)
+                ->whereIn('role', ['teacher', 'assistant'])->exists();
+            if (! $ok) {
+                return response()->json(['error' => 'not found'], 404);
+            }
+        }
+        $studentIds = DB::table('class_members')->where('class_id', $cid)->where('role', 'student')->pluck('user_id');
+        $q = DB::table('submissions as s')
+            ->join('users as u', 'u.id', '=', 's.user_id')
+            ->leftJoin('problem_versions as v', 'v.id', '=', 's.problem_version_id')
+            ->leftJoin('problems as p', 'p.id', '=', 'v.problem_id')
+            ->leftJoin('judging_runs as r', fn ($j) => $j->on('r.submission_id', '=', 's.id')->where('r.is_current', 1))
+            ->leftJoin('reviews as rv', 'rv.submission_id', '=', 's.id')
+            ->whereIn('s.user_id', $studentIds)
+            ->when($request->query('user_id'), fn ($w, $v) => $w->where('s.user_id', (int) $v))
+            ->when($request->query('problem_id'), fn ($w, $v) => $w->where('p.id', (int) $v))
+            ->when($request->query('ungraded'), fn ($w) => $w->whereNull('rv.id'))
+            ->select('s.id', 's.language', 's.created_at', 'u.id as user_id', 'u.email', 'u.display_name',
+                'p.id as problem_id', 'p.title as problem_title', 'r.status', 'r.verdict', 'r.score',
+                'rv.score as review_score', 'rv.comment as review_comment')
+            ->orderByDesc('s.id');
+        $p = $q->paginate(self::perPage($request));
+
+        return response()->json(['submissions' => $p->items(), 'meta' => self::meta($p)]);
     }
 
     // Quan tri nguoi dung: liet ke (phan trang) + doi vai tro.
@@ -551,6 +597,7 @@ class AdminController extends Controller
     // GV sua vai tro hoc sinh trong lop (student <-> assistant).
     public function updateMember(Request $request, int $cid, int $uid)
     {
+        if ($deny = $this->denyUnlessManages($cid)) return $deny;
         $data = $request->validate(['role' => 'required|in:student,assistant']);
         $n = DB::table('class_members')->where('class_id', $cid)->where('user_id', $uid)->update(['role' => $data['role']]);
         if (! $n) {
@@ -702,6 +749,31 @@ class AdminController extends Controller
         return response()->json(['ok' => true, 'role' => $u->role]);
     }
 
+    // GV chi quan ly lop minh phu trach (role teacher/assistant trong class_members). Admin luon duoc.
+    // Tra 404 de khong lo su ton tai cua lop (muc 8.6 CLAUDE.md).
+    private function denyUnlessManages(int $cid)
+    {
+        $u = request()->user();
+        if ($u->role === 'admin') return null;
+        $ok = DB::table('class_members')->where('class_id', $cid)->where('user_id', $u->id)
+            ->whereIn('role', ['teacher', 'assistant'])->exists();
+        return $ok ? null : response()->json(['error' => 'not found'], 404);
+    }
+
+    // GV chi cham bai nop cua hoc sinh thuoc lop minh phu trach.
+    private function denyUnlessGrades(int $sid)
+    {
+        $u = request()->user();
+        $s = Submission::find($sid);
+        if (! $s) return response()->json(['error' => 'not found'], 404);
+        if ($u->role === 'admin') return null;
+        $ok = DB::table('class_members as t')
+            ->join('class_members as st', 'st.class_id', '=', 't.class_id')
+            ->where('t.user_id', $u->id)->whereIn('t.role', ['teacher', 'assistant'])
+            ->where('st.user_id', $s->user_id)->exists();
+        return $ok ? null : response()->json(['error' => 'not found'], 404);
+    }
+
     private static function meta($p): array
     {
         return ['page' => $p->currentPage(), 'per_page' => $p->perPage(), 'total' => $p->total(), 'last_page' => $p->lastPage()];
@@ -792,6 +864,10 @@ class AdminController extends Controller
             ->when($request->query('q'), fn ($w, $v) => $w->where('u.email', 'like', '%'.$v.'%'))
             ->when($request->query('problem_id'), fn ($w, $v) => $w->where('p.id', (int) $v))
             ->when($request->query('user_id'), fn ($w, $v) => $w->where('s.user_id', (int) $v))
+            // Loc theo lop: lay cac submission cua hoc sinh trong lop.
+            ->when($request->query('class_id'), fn ($w, $v) => $w->whereIn('s.user_id',
+                DB::table('class_members')->where('class_id', (int) $v)->pluck('user_id')
+            ))
             ->select('s.id', 's.language', 's.created_at', 'u.id as user_id', 'u.email', 'u.display_name',
                 'p.id as problem_id', 'p.title as problem_title', 'r.id as run_id', 'r.status', 'r.verdict', 'r.score', 'r.attempt')
             ->orderByDesc('s.id');

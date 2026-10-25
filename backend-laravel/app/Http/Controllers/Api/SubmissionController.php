@@ -214,11 +214,26 @@ class SubmissionController extends Controller
     public function code(Request $request, int $id)
     {
         $s = Submission::find($id);
-        if (! $s || ((int) $s->user_id !== (int) $request->user()->id && $request->user()->role === 'student')) {
-            return response()->json(['error' => 'not found'], 404);
+        if (! $s) return response()->json(['error' => 'not found'], 404);
+        $user = $request->user();
+        // Student chi xem code cua chinh minh.
+        // Teacher/admin co the xem code hoc sinh trong lop minh phu trach.
+        if ((int) $s->user_id !== (int) $user->id) {
+            if ($user->role === 'student') {
+                return response()->json(['error' => 'not found'], 404);
+            }
+            if ($user->role === 'teacher') {
+                $ok = DB::table('class_members as t')
+                    ->join('class_members as st', 'st.class_id', '=', 't.class_id')
+                    ->where('t.user_id', $user->id)
+                    ->whereIn('t.role', ['teacher', 'assistant'])
+                    ->where('st.user_id', $s->user_id)
+                    ->exists();
+                if (! $ok) return response()->json(['error' => 'not found'], 404);
+            }
         }
 
-        return response()->json(['source_code' => $s->source_code]);
+        return response()->json(['source_code' => $s->source_code, 'language' => $s->language]);
     }
 
     public function destroy(Request $request, int $id)

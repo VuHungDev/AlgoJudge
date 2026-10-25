@@ -72,6 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/admin/assignments/{id}', [AdminController::class, 'deleteAssignment']);
         Route::get('/teacher/classes', [AdminController::class, 'myTeachingClasses']);
         Route::get('/teacher/overview', [AdminController::class, 'teacherOverview']);
+        Route::get('/teacher/classes/{id}/submissions', [AdminController::class, 'teacherClassSubmissions']);
         Route::get('/users/lookup', [AdminController::class, 'lookupUser']);
         Route::post('/admin/submissions/{id}/review', [AdminController::class, 'review']);
         Route::get('/admin/submissions/{id}/review', [AdminController::class, 'getReview']);
