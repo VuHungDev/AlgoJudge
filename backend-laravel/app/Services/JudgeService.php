@@ -37,6 +37,10 @@ class JudgeService
             $copts = self::cleanOpt($compilerOptions);
             $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.c && gcc -O2 -std=c17 '.($copts !== '' ? $copts.' ' : '').'-o ./a ./main.c 2>./ce.txt && ./a'.($cmdArgs !== '' ? ' '.$cmdArgs : '').' || { cat ./ce.txt >&2; exit 99; }';
             $tmpfs = '/tmp:rw,exec,nosuid,size=128m';
+        } elseif ($lang === 'php') {
+            $img = 'oj-sandbox-php';
+            $sh = 'printf "%s" "$OJ_CODE" | base64 -d > ./main.php && php ./main.php'.($cmdArgs !== '' ? ' '.$cmdArgs : '');
+            $tmpfs = '/tmp:rw,nosuid,size=64m';
         } else {
             $img = 'oj-sandbox-cpp';
             $copts = self::cleanOpt($compilerOptions);
@@ -85,7 +89,8 @@ class JudgeService
             return ['COMPILE_ERROR', '', $err, $ms];
         }
         if ($exit !== 0) {
-            if (str_contains($err, 'SyntaxError') || str_contains($err, 'IndentationError')) {
+            if (str_contains($err, 'SyntaxError') || str_contains($err, 'IndentationError')
+                || ($lang === 'php' && str_contains($err, 'Parse error'))) {
                 return ['COMPILE_ERROR', '', $err, $ms];
             }
             if (str_contains($err, 'MemoryError') || str_contains($err, 'std::bad_alloc')) {

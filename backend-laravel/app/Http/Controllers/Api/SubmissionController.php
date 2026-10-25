@@ -20,7 +20,7 @@ class SubmissionController extends Controller
     public function run(Request $request)
     {
         $data = $request->validate([
-            'language' => 'nullable|string',
+            'language' => 'nullable|in:python,cpp,js,java,go,c,php',
             'source_code' => 'nullable|string|max:1048576',
             'stdin' => 'nullable|string|max:65536',
             'problem_version_id' => 'nullable|integer',
@@ -57,7 +57,7 @@ class SubmissionController extends Controller
         }
         $data = $request->validate([
             'problem_version_id' => 'required|integer',
-            'language' => 'required|string',
+            'language' => 'required|in:python,cpp,js,java,go,c,php',
             'source_code' => 'required|string|max:1048576',
             'number_of_runs' => 'nullable|integer|min:1|max:20',
             'compiler_options' => 'nullable|string|max:512',

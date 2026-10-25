@@ -11,8 +11,8 @@ import { useToast } from '@/components/feedback';
 
 const Editor = dynamicImport(() => import('@monaco-editor/react'), { ssr: false });
 
-const MONACO_LANG: Record<string, string> = { python: 'python', cpp: 'cpp', js: 'javascript', java: 'java', go: 'go', c: 'c' };
-const LANG_LABEL: Record<string, string> = { python: 'Python', cpp: 'C++', js: 'JavaScript', java: 'Java', go: 'Go', c: 'C' };
+const MONACO_LANG: Record<string, string> = { python: 'python', cpp: 'cpp', js: 'javascript', java: 'java', go: 'go', c: 'c', php: 'php' };
+const LANG_LABEL: Record<string, string> = { python: 'Python', cpp: 'C++', js: 'JavaScript', java: 'Java', go: 'Go', c: 'C', php: 'PHP' };
 
 const STARTER: Record<string, string> = {
   python: 'a,b=map(int,input().split());print(a+b)',
@@ -21,6 +21,7 @@ const STARTER: Record<string, string> = {
   java: 'import java.util.*;\npublic class Main{\npublic static void main(String[]a){\nScanner s=new Scanner(System.in);\nlong x=s.nextLong(),y=s.nextLong();\nSystem.out.println(x+y);}}',
   go: 'package main\nimport "fmt"\nfunc main(){var a,b int;fmt.Scan(&a,&b);fmt.Println(a+b)}',
   c: '#include <stdio.h>\nint main(){long long a,b;if(scanf("%lld%lld",&a,&b)!=2)return 0;printf("%lld\\n",a+b);return 0;}',
+  php: '<?php\n[$a,$b]=array_map("intval",explode(" ",trim(fgets(STDIN))));\necho $a+$b;',
 };
 
 export default function SolvePage({ params }: { params: Promise<{ id: string }> }) {

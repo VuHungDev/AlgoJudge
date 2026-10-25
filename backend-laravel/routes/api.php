@@ -91,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
             ['id' => 4, 'name' => 'Java (Temurin 17)', 'source_file' => 'Main.java', 'compile_cmd' => 'javac Main.java', 'run_cmd' => 'java Main'],
             ['id' => 5, 'name' => 'Go (1.22)', 'source_file' => 'main.go', 'compile_cmd' => 'go build -o /tmp/a main.go', 'run_cmd' => '/tmp/a'],
             ['id' => 6, 'name' => 'C (GCC 13)', 'source_file' => 'main.c', 'compile_cmd' => 'gcc -O2 -std=c17 -o /tmp/a main.c', 'run_cmd' => '/tmp/a'],
+            ['id' => 7, 'name' => 'PHP (8.2)', 'source_file' => 'main.php', 'compile_cmd' => null, 'run_cmd' => 'php main.php'],
         ]]);
     });
     Route::get('/statuses', function () {

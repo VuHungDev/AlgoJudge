@@ -34,6 +34,10 @@ const LANGS: { key: string; label: string; monacoLang: string; starter: string }
     key: 'c', label: 'C', monacoLang: 'c',
     starter: '#include <stdio.h>\nint main() {\n    // Viết code C của bạn tại đây\n    \n    return 0;\n}\n',
   },
+  {
+    key: 'php', label: 'PHP', monacoLang: 'php',
+    starter: "<?php\n// Viết code PHP của bạn tại đây\n// Đọc input: fgets(STDIN)\n// In output: echo\n\n",
+  },
 ];
 
 export default function PlaygroundPage() {

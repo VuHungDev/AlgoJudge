@@ -12,10 +12,11 @@ const STARTER: Record<string, string> = {
   java: 'import java.util.*;\npublic class Main{\npublic static void main(String[]a){\nScanner s=new Scanner(System.in);\nlong x=s.nextLong(),y=s.nextLong();\nSystem.out.println(x+y);}}',
   go: 'package main\nimport "fmt"\nfunc main(){var a,b int;fmt.Scan(&a,&b);fmt.Println(a+b)}',
   c: '#include <stdio.h>\nint main(){long long a,b;if(scanf("%lld%lld",&a,&b)!=2)return 0;printf("%lld\\n",a+b);return 0;}',
+  php: '<?php\n[$a,$b]=array_map("intval",explode(" ",trim(fgets(STDIN))));\necho $a+$b;',
 };
 
-const LANGS = ['python', 'cpp', 'js', 'java', 'go', 'c'];
-const LANG_LABEL: Record<string, string> = { python: 'Python', cpp: 'C++', js: 'JS', java: 'Java', go: 'Go', c: 'C' };
+const LANGS = ['python', 'cpp', 'js', 'java', 'go', 'c', 'php'];
+const LANG_LABEL: Record<string, string> = { python: 'Python', cpp: 'C++', js: 'JS', java: 'Java', go: 'Go', c: 'C', php: 'PHP' };
 
 function createIdempotencyKey(): string {
   const cryptoApi = (globalThis as unknown as { crypto?: { randomUUID?: () => string } }).crypto;
