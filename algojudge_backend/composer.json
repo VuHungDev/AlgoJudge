@@ -1,5 +1,0 @@
-{
-  "name": "oj/backend",
-  "require": { "php": ">=8.2", "firebase/php-jwt": "^6.10" },
-  "autoload": { "psr-4": { "OJ\\": "src/" } }
-}
