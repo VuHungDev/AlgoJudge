@@ -18,8 +18,13 @@ class ProblemController extends Controller
         if ($request->difficulty) {
             $q->where('difficulty', $request->difficulty);
         }
+        $per = (int) min(max((int) $request->query('per_page', 10), 1), 50);
+        $p = $q->orderBy('id')->paginate($per);
 
-        return response()->json(['problems' => $q->get()]);
+        return response()->json([
+            'problems' => $p->items(),
+            'meta' => ['page' => $p->currentPage(), 'per_page' => $p->perPage(), 'total' => $p->total(), 'last_page' => $p->lastPage()],
+        ]);
     }
 
     public function show(int $id)

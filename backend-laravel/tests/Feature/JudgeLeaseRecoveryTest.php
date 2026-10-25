@@ -54,4 +54,22 @@ class JudgeLeaseRecoveryTest extends TestCase
     {
         $this->getJson('/api/v1/me')->assertStatus(401);
     }
+
+    public function test_student_cannot_access_admin_routes(): void
+    {
+        $user = \App\Models\User::create([
+            'email' => 'student-role-test@example.test',
+            'password_hash' => bcrypt('password'),
+            'role' => 'student',
+        ]);
+        $token = $user->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->getJson('/api/v1/ops/queue', $headers)->assertStatus(403);
+        $this->getJson('/api/v1/statistics', $headers)->assertStatus(403);
+        $this->getJson('/api/v1/config_info', $headers)->assertStatus(403);
+        $this->postJson('/api/v1/admin/problems', [
+            'slug' => 'role-test', 'title' => 'Role test',
+        ], $headers)->assertStatus(403);
+    }
 }

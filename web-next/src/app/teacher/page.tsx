@@ -1,80 +1,75 @@
-'use client';
+﻿'use client';
 
-import { useState } from 'react';
-import { api } from '@/lib/api';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { api, friendlyError } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { Badge, Btn, Card, EmptyState, Field, Guard, Input, Kicker, LoadingSkeleton, PageHero, Pagination, SectionTitle, Select, Stat, Table, TextArea, type PageMeta } from '@/components/ui';
 
-// Port tu algojudge_ui/teacher.html: testset, rejudge, compare, similarity, progress.
-export default function Teacher() {
-  const [pid, setPid] = useState('1');
-  const [checker, setChecker] = useState('exact');
-  const [checkerCfg, setCheckerCfg] = useState('/^\\d+ \\d+$/');
-  const [cases, setCases] = useState('[{"input":"2 3","expected":"5","is_public":1,"group":"co-ban","weight":1}]');
-  const [sid, setSid] = useState('');
-  const [ra, setRa] = useState('');
-  const [rb, setRb] = useState('');
-  const [sa, setSa] = useState('');
-  const [sb, setSb] = useState('');
-  const [cid, setCid] = useState('');
-  const [out, setOut] = useState('');
+const TEACHER_PAGES = [
+  { href: '/teacher', label: 'Tổng quan' },
+  { href: '/teacher/problems', label: 'Đề thi & testset' },
+  { href: '/teacher/grading', label: 'Giao bài & chấm' },
+  { href: '/teacher/contests', label: 'Kỳ thi' },
+  { href: '/teacher/classes', label: 'Lớp học' },
+  { href: '/teacher/stats', label: 'Thống kê' },
+  { href: '/teacher/manage', label: 'Quản trị lớp' },
+];
 
-  const show = (r: unknown) => setOut(JSON.stringify(r, null, 2));
+interface Overview { classes: number; problems: number; assignments: number; students: number }
 
-  const mkts = () =>
-    api(`/admin/problems/${pid}/testsets`, {
-      method: 'POST',
-      body: JSON.stringify({
-        checker,
-        checker_config: checker === 'regex' ? checkerCfg : undefined,
-        cases: JSON.parse(cases),
-      }),
-    }).then(show).catch((e) => setOut(String(e)));
+export default function TeacherHome() {
+  const { me, loading } = useAuth();
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (!me) return;
+    api<Overview>('/teacher/overview').then(setOverview).catch((e: unknown) => setErr(friendlyError(e instanceof Error ? e.message : String(e))));
+  }, [me]);
+
+  if (loading) return <LoadingSkeleton rows={4} />;
+  if (!me) return <Guard title="Khu giảng viên" hint="Vui lòng đăng nhập để mở trang giảng viên." />;
+  if (me.role !== 'teacher' && me.role !== 'admin') return <Guard title="Không có quyền" hint="Chỉ giảng viên mới vào được khu này." />;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Tạo bộ dữ liệu mới (&ge; 5 ca)</h3>
-        <div className="flex gap-2 mb-2">
-          <input className="border p-1" placeholder="problem_id" value={pid} onChange={(e) => setPid(e.target.value)} />
-          <select className="border p-1" value={checker} onChange={(e) => setChecker(e.target.value)}>
-            <option value="exact">Khớp chính xác</option>
-            <option value="float">Sai số (số thực)</option>
-            <option value="sorted">Nhiều đáp án (kệ thứ tự dòng)</option>
-            <option value="tokens">Nhiều đáp án (kệ thứ tự từ)</option>
-            <option value="regex">Mẫu regex tự đặt</option>
-          </select>
-          {checker === 'regex' && (
-            <input className="border p-1 font-mono" placeholder="mẫu regex, vd. /^\d+ \d+$/" value={checkerCfg} onChange={(e) => setCheckerCfg(e.target.value)} />
-          )}
+    <div className="flex flex-col gap-5">
+      <PageHero
+        zone="teach"
+        kicker="Khu giảng viên"
+        title="Xin chào, giảng viên!"
+        desc="Chọn mục bên dưới để bắt đầu: tạo đề thi, giao bài, quản lý lớp học và xem thống kê."
+        glow="accent"
+      />
+
+      {err && <Card><p className="text-sm text-danger">⚠️ {err}</p></Card>}
+
+      {overview && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat label="LỚP ĐANG DẠY" value={overview.classes} accent="var(--accent)" />
+          <Stat label="BÀI TẬP" value={overview.problems} accent="var(--primary)" />
+          <Stat label="GIAO BÀI" value={overview.assignments} accent="var(--success)" />
+          <Stat label="HỌC SINH" value={overview.students} accent="var(--warning)" />
         </div>
-        <textarea className="border w-full font-mono p-1" rows={5} value={cases} onChange={(e) => setCases(e.target.value)} />
-        <button className="bg-green-700 text-white px-3 py-1 rounded mt-2" onClick={mkts}>Tạo testset</button>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {TEACHER_PAGES.slice(1).map((p, i) => (
+          <Link key={p.href} href={p.href} className="flex flex-col gap-2 rounded-xl border border-border bg-surface-raised p-5 transition hover:border-primary">
+            <span className="text-2xl">{['📝', '📮', '🏆', '🏫', '📊', '⚙️'][i]}</span>
+            <p className="font-extrabold text-lg">{p.label}</p>
+            <p className="text-sm text-muted">{[
+              'Tạo bài tập mới, cập nhật đề, thêm testset',
+              'Giao bài cho lớp/cá nhân, rejudge, chấm tay',
+              'Tạo contest, xem leaderboard',
+              'Danh sách lớp đang dạy, thành viên',
+              'Drill-down tiến độ lớp → bài → học sinh',
+              'Thêm/xóa thành viên, theo dõi bài làm',
+            ][i]}</p>
+            <span className="text-sm font-bold text-primary">Mở →</span>
+          </Link>
+        ))}
       </div>
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Chấm lại + Đối chiếu</h3>
-        <div className="flex gap-2">
-          <input className="border p-1" placeholder="submission_id" value={sid} onChange={(e) => setSid(e.target.value)} />
-          <input className="border p-1" placeholder="run a" value={ra} onChange={(e) => setRa(e.target.value)} />
-          <input className="border p-1" placeholder="run b" value={rb} onChange={(e) => setRb(e.target.value)} />
-          <button className="bg-green-700 text-white px-3 rounded" onClick={() => api(`/admin/submissions/${sid}/rejudge`, { method: 'POST' }).then(show)}>Chấm lại</button>
-          <button className="border px-3 rounded" onClick={() => api(`/admin/submissions/${sid}/compare?a=${ra}&b=${rb}`).then(show)}>Đối chiếu</button>
-        </div>
-      </div>
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Chống đạo văn</h3>
-        <div className="flex gap-2">
-          <input className="border p-1" placeholder="submission a" value={sa} onChange={(e) => setSa(e.target.value)} />
-          <input className="border p-1" placeholder="submission b" value={sb} onChange={(e) => setSb(e.target.value)} />
-          <button className="border px-3 rounded" onClick={() => api(`/admin/submissions/${sa}/similarity/${sb}`).then(show)}>So sánh</button>
-        </div>
-      </div>
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Theo dõi lớp</h3>
-        <div className="flex gap-2">
-          <input className="border p-1" placeholder="class_id" value={cid} onChange={(e) => setCid(e.target.value)} />
-          <button className="border px-3 rounded" onClick={() => api(`/admin/classes/${cid}/progress`).then(show)}>Xem</button>
-        </div>
-      </div>
-      <pre className="bg-white rounded p-4 text-sm whitespace-pre-wrap">{out}</pre>
     </div>
   );
 }

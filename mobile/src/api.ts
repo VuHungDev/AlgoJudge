@@ -33,17 +33,39 @@ export async function registerPushToken(): Promise<void> {
 }
 
 
+export async function unregisterPushToken(token: string): Promise<void> {
+  await api('/me/device-token', { method: 'DELETE', body: JSON.stringify({ expo_token: token }) });
+}
+
+
+const getCache = new Map<string, { at: number; data: unknown }>();
+
 export async function api(path: string, opts: RequestInit = {}): Promise<any> {
+  const method = (opts.method || 'GET').toUpperCase();
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((opts.headers as Record<string, string>) || {}),
   };
   if (token) headers['Authorization'] = 'Bearer ' + token;
+  // Cache GET 15s de chuyen man hinh nhanh; mutation xoa sach cache.
+  if (method !== 'GET') getCache.clear();
+  else {
+    const hit = getCache.get(path);
+    if (hit && Date.now() - hit.at < 15000) return hit.data;
+  }
   const r = await fetch(API + path, { ...opts, headers });
   if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  const contentType = r.headers.get('content-type') || '';
+  const data = contentType.includes('application/json') ? await r.json() : await r.text();
+  if (method === 'GET') {
+    getCache.set(path, { at: Date.now(), data });
+    if (getCache.size > 100) getCache.delete(getCache.keys().next().value as string);
+  }
+  return data;
 }
+
+
 
 
 
@@ -52,12 +74,13 @@ export async function pollSubmission(
   id: number,
   onUpdate: (s: any) => void,
   timeoutMs = 90000,
-): Promise<void> {
+): Promise<'DONE' | 'TIMEOUT'> {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
     const s = await api(`/submissions/${id}`);
     onUpdate(s);
-    if (s.verdict || (s.status && s.status !== 'QUEUED' && s.status !== 'RUNNING')) return;
+    if (s.verdict || (s.status && s.status !== 'QUEUED' && s.status !== 'RUNNING')) return 'DONE';
     await new Promise((r) => setTimeout(r, 2000));
   }
+  return 'TIMEOUT';
 }

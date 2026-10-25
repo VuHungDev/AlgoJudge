@@ -12,7 +12,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory;
 
-    protected $fillable = ['email', 'password_hash', 'role'];
+    protected $fillable = ['email', 'password_hash', 'role', 'display_name'];
 
     public function isTeacher(): bool
     {

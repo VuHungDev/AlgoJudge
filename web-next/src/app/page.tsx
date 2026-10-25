@@ -1,147 +1,115 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { api, watchSubmission, Problem, SubmissionResult } from '@/lib/api';
+// Trang chu (Home): chi hien khi da dang nhap.
+// Chua login -> chuyen ve /welcome (logo + khung auth giua man hinh).
+
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { api, Problem } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-
-const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
-
-const MONACO_LANG: Record<string, string> = { python: 'python', cpp: 'cpp', js: 'javascript', java: 'java', go: 'go', c: 'c' };
-
-const STARTER: Record<string, string> = {
-  python: 'a,b=map(int,input().split());print(a+b)',
-  cpp: '#include <bits/stdc++.h>\nusing namespace std;\nint main(){long long a,b;if(!(cin>>a>>b))return 0;cout<<a+b;return 0;}',
-  js: 'const fs=require("fs");const[a,b]=fs.readFileSync(0,"utf8").trim().split(/\\s+/).map(Number);console.log(a+b);',
-  java: 'import java.util.*;\npublic class Main{\npublic static void main(String[]a){\nScanner s=new Scanner(System.in);\nlong x=s.nextLong(),y=s.nextLong();\nSystem.out.println(x+y);}}',
-  go: 'package main\nimport "fmt"\nfunc main(){var a,b int;fmt.Scan(&a,&b);fmt.Println(a+b)}',
-  c: '#include <stdio.h>\nint main(){long long a,b;if(scanf("%lld%lld",&a,&b)!=2)return 0;printf("%lld\\n",a+b);return 0;}',
-};
+import { Card, DiffBadge, EmptyState, ErrorBox, Field, Input, Kicker, LoadingSkeleton, PageHero, Pagination, SectionTitle, Select, type PageMeta } from '@/components/ui';
 
 export default function Home() {
-  const { me, login, register, logout } = useAuth();
-  const [email, setEmail] = useState('');
-  const [pass, setPass] = useState('');
+  const { me, loading } = useAuth();
+  const router = useRouter();
   const [problems, setProblems] = useState<Problem[]>([]);
-  const [pid, setPid] = useState(1);
-  const [pvid, setPvid] = useState(1);
-  const [detail, setDetail] = useState<Problem | null>(null);
-  const [lang, setLang] = useState('python');
-  const [code, setCode] = useState('a,b=map(int,input().split());print(a+b)');
-  const [stdin, setStdin] = useState('');
-  const [out, setOut] = useState('');
-  const [hist, setHist] = useState<SubmissionResult[]>([]);
+  const [progress, setProgress] = useState<{ solved: number; total: number } | null>(null);
+  const [query, setQuery] = useState('');
+  const [topic, setTopic] = useState('');
+  const [difficulty, setDifficulty] = useState('');
+  const [listLoading, setListLoading] = useState(false);
+  const [listErr, setListErr] = useState('');
+  const [probMeta, setProbMeta] = useState<PageMeta | null>(null);
 
-  const load = async () => {
-    const p = await api<{ problems: Problem[] }>('/problems');
-    setProblems(p.problems || []);
-    const h = await api<{ submissions: SubmissionResult[] }>('/me/submissions');
-    setHist(h.submissions || []);
-  };
+  const load = useCallback(async (page = 1) => {
+    setListLoading(true); setListErr('');
+    try {
+      const qs = new URLSearchParams();
+      if (topic) qs.set('topic', topic);
+      if (difficulty) qs.set('difficulty', difficulty);
+      qs.set('page', String(page));
+      qs.set('per_page', '10');
+      const [p, pr] = await Promise.all([
+        api<{ problems: Problem[]; meta: PageMeta }>(`/problems${qs.toString() ? `?${qs}` : ''}`),
+        api<{ solved: number; total: number }>('/me/progress'),
+      ]);
+      setProblems(p.problems || []);
+      setProbMeta(p.meta || null);
+      setProgress(pr);
+    } catch (e: unknown) { setListErr(e instanceof Error ? e.message : String(e)); }
+    finally { setListLoading(false); }
+  }, [topic, difficulty]);
 
   useEffect(() => {
-    if (me) load();
-  }, [me]);
+    if (!loading && !me) router.replace('/welcome');
+  }, [loading, me, router]);
 
-  const pick = async (id: number, vid: number) => {
-    setPid(id);
-    setPvid(vid);
-    setDetail(await api<Problem>(`/problems/${id}`));
-    try {
-      const d = await api<{ code?: string }>(`/problems/${id}/draft`);
-      if (d.code) setCode(d.code);
-    } catch {}
-  };
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => { if (me) void load(); }, [me, load]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const saveDraft = () =>
-    api(`/problems/${pid}/draft`, {
-      method: 'PUT',
-      body: JSON.stringify({ language: lang, code }),
-    }).then(() => setOut('Đã lưu nháp'));
+  const topics = [...new Set(problems.map((p) => p.topic).filter(Boolean))];
+  const visibleProblems = problems.filter((x) => `${x.title} ${x.topic} ${x.slug}`.toLowerCase().includes(query.trim().toLowerCase()));
 
-  const run = async () => {
-    const r = await api('/run', {
-      method: 'POST',
-      body: JSON.stringify({ language: lang, source_code: code, stdin }),
-    });
-    setOut(JSON.stringify(r, null, 2));
-  };
+  if (loading) return <LoadingSkeleton rows={4} />;
 
-  const submit = async () => {
-    const r = await api<{ submission_id: number }>('/submissions', {
-      method: 'POST',
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify({ problem_version_id: pvid, language: lang, source_code: code }),
-    });
-    setOut(`Đã nộp #${r.submission_id} — đang theo dõi qua SSE...`);
-    watchSubmission(
-      r.submission_id,
-      (s) => setOut('Trạng thái: ' + JSON.stringify(s)),
-      async () => {
-        setOut(JSON.stringify(await api(`/submissions/${r.submission_id}`), null, 2));
-        load();
-      },
-    );
-  };
-
-  if (!me)
-    return (
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Đăng nhập</h3>
-        <div className="flex gap-2">
-          <input className="border p-1" placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="border p-1" type="password" placeholder="mật khẩu" value={pass} onChange={(e) => setPass(e.target.value)} />
-          <button className="bg-blue-600 text-white px-3 rounded" onClick={() => login(email, pass)}>Đăng nhập</button>
-          <button className="border px-3 rounded" onClick={() => register(email, pass)}>Đăng ký</button>
-        </div>
-      </div>
-    );
+  // Route guard: chua login thi ve welcome, khong render Home.
+  if (!me) return null;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="bg-white rounded p-4 flex justify-between">
-        <span>{me.email} ({me.role})</span>
-        <button className="text-sm underline" onClick={logout}>Đăng xuất</button>
-      </div>
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Bài tập</h3>
-        {problems.map((x) => (
-          <div key={x.id} className="flex gap-2 items-center py-1">
-            <b>#{x.id} {x.title}</b>
-            <span className="text-xs text-slate-500">[{x.topic}/{x.difficulty}]</span>
-            <button className="text-blue-600 text-sm underline" onClick={() => pick(x.id, x.current_version_id)}>Chọn</button>
-          </div>
-        ))}
-      </div>
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Soạn mã — bài #{pid}</h3>
-        {detail?.current_version && (
-          <p className="text-sm mb-2 whitespace-pre-wrap">{detail.current_version.statement}</p>
-        )}
-        <select className="border p-1 mb-2" value={lang} onChange={(e) => { setLang(e.target.value); setCode(STARTER[e.target.value] || ''); }}>
-          <option value="python">Python</option>
-          <option value="cpp">C++</option>
-          <option value="js">JavaScript</option>
-          <option value="java">Java</option>
-          <option value="go">Go</option>
-          <option value="c">C</option>
-        </select>
-        <Editor height="240px" language={MONACO_LANG[lang]} value={code} onChange={(v) => setCode(v || '')} />
-        <textarea className="border w-full mt-2 p-1" rows={2} placeholder="stdin chạy thử" value={stdin} onChange={(e) => setStdin(e.target.value)} />
-        <div className="flex gap-2 mt-2">
-          <button className="bg-blue-600 text-white px-3 py-1 rounded" onClick={run}>Chạy thử</button>
-          <button className="bg-green-600 text-white px-3 py-1 rounded" onClick={submit}>Nộp bài</button>
-          <button className="border px-3 py-1 rounded" onClick={saveDraft}>Lưu nháp</button>
+    <div className="flex flex-col gap-5">
+      <PageHero
+        zone="learn"
+        kicker="Không gian học tập"
+        title="Bài tập của tôi"
+        desc="Tìm bài theo tên hoặc mã, lọc theo chủ đề và độ khó, bấm vào để mở phòng làm bài riêng."
+        stat={{ label: 'Đã giải', value: `${progress?.solved ?? 0}/${progress?.total ?? 0}` }}
+      />
+
+      <Card>
+        <div className="grid gap-3 md:grid-cols-[1fr_12rem_12rem]">
+          <Field label="Tìm bài tập">
+            <Input placeholder="Nhập tên hoặc mã bài tập" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </Field>
+          <Field label="Chủ đề">
+            <Select value={topic} onChange={(e) => setTopic(e.target.value)}>
+              <option value="">Mọi chủ đề</option>
+              {topics.map((t) => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          </Field>
+          <Field label="Độ khó">
+            <Select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+              <option value="">Mọi độ khó</option>
+              <option value="easy">Dễ</option>
+              <option value="medium">Trung bình</option>
+              <option value="hard">Khó</option>
+            </Select>
+          </Field>
         </div>
-        <pre className="mt-2 text-sm whitespace-pre-wrap">{out}</pre>
-      </div>
-      <div className="bg-white rounded p-4">
-        <h3 className="font-bold mb-2">Lịch sử</h3>
-        {hist.map((s: unknown, i: number) => {
-          const r = s as SubmissionResult & { id: number; language: string };
-          return <div key={i}>#{r.id} {r.language} <b>{r.verdict || '...'}</b> {r.score}</div>;
-        })}
-      </div>
+      </Card>
+
+      <Card>
+        <Kicker>Danh sách bài tập</Kicker>
+        <SectionTitle sub={`${probMeta?.total ?? visibleProblems.length} bài · 10 bài / trang`}>Chọn bài để làm</SectionTitle>
+        {listErr && <div className="mt-3"><ErrorBox message={listErr} onRetry={() => load(1)} /></div>}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {listLoading ? <div className="sm:col-span-2"><LoadingSkeleton rows={4} /></div> : visibleProblems.map((x) => (
+            <Link prefetch={false} key={x.id} href={`/solve/${x.id}`} className="studio-card studio-card-hover flex flex-col gap-2 !p-5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="studio-title text-lg">{x.title}</p>
+                <DiffBadge d={x.difficulty} />
+              </div>
+              <p className="studio-muted text-sm">Mã bài: {x.slug} · Chủ đề: {x.topic || '—'}</p>
+              <span className="studio-button studio-primary mt-2 w-fit !py-2 text-sm">Mở phòng làm bài →</span>
+            </Link>
+          ))}
+        </div>
+        {!listLoading && visibleProblems.length === 0 && !listErr && (
+          <div className="mt-4"><EmptyState title="Không tìm thấy bài phù hợp" hint="Thử nới lỏng từ khóa hoặc bộ lọc." /></div>
+        )}
+        <Pagination meta={probMeta} onPage={(p) => load(p)} />
+      </Card>
     </div>
   );
 }

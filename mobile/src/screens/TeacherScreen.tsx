@@ -1,59 +1,148 @@
-import React, { useState } from 'react';
-import { Text, Button, ScrollView, TextInput } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { api } from '../api';
+import { colors, spacing } from '../theme';
+import { Card, Screen, Hero, SectionTitle, Muted, LoadingBlock } from '../components/ui';
 
-// Khu giang vien tren mobile (dong bo voi web /teacher): testset + rejudge +
-// compare + similarity + progress lop.
-export default function TeacherScreen() {
-  const [pid, setPid] = useState('1');
-  const [checker, setChecker] = useState('exact');
-  const [checkerCfg, setCheckerCfg] = useState('/^\\d+ \\d+$/');
-  const [cases, setCases] = useState('[{"input":"2 3","expected":"5","is_public":1,"group":"co-ban","weight":1}]');
-  const [sid, setSid] = useState('');
-  const [ra, setRa] = useState('');
-  const [rb, setRb] = useState('');
-  const [sa, setSa] = useState('');
-  const [sb, setSb] = useState('');
-  const [cid, setCid] = useState('');
-  const [out, setOut] = useState('');
+interface TeacherDashboard {
+  classes_count: number;
+  problems_count: number;
+  assignments_count: number;
+  contests_count: number;
+}
 
-  const show = async (p: Promise<any>) => {
-    try { setOut(JSON.stringify(await p)); } catch (e: any) { setOut(String(e.message || e)); }
-  };
+const NAV_CARDS = [
+  { id: 'problems', title: 'Đề thi', icon: '📝', desc: 'Tạo bài tập, dựng testset, cập nhật đề', screen: 'TeacherProblems' },
+  { id: 'grading', title: 'Giao bài & chấm', icon: '✅', desc: 'Giao bài, chấm lại, so sánh, chống đạo văn', screen: 'TeacherGrading' },
+  { id: 'contests', title: 'Kỳ thi', icon: '🏆', desc: 'Tạo contest, xem leaderboard', screen: 'TeacherContests' },
+  { id: 'classes', title: 'Lớp học', icon: '👥', desc: 'Danh sách lớp đang dạy, quản lý thành viên', screen: 'TeacherClasses' },
+  { id: 'stats', title: 'Thống kê', icon: '📊', desc: 'Khoan xuống: lớp → bài → sinh viên → chấm điểm', screen: 'TeacherStats' },
+  { id: 'manage', title: 'Quản trị lớp', icon: '⚙️', desc: 'Chi tiết lớp: thành viên, tiến độ, bài giao, thống kê', screen: 'TeacherManage' },
+];
 
-  const mkts = () =>
-    show(api(`/admin/problems/${pid}/testsets`, {
-      method: 'POST',
-      body: JSON.stringify({
-        checker,
-        checker_config: checker === 'regex' ? checkerCfg : undefined,
-        cases: JSON.parse(cases),
-      }),
-    }));
+export default function TeacherScreen({ navigation }: any) {
+  const [role, setRole] = useState('');
+  const [dash, setDash] = useState<TeacherDashboard | null>(null);
+
+  useEffect(() => {
+    api('/me').then((m) => {
+      setRole(m.role);
+      if (m.role === 'teacher' || m.role === 'admin') {
+        api('/teacher/overview').then((r) => {
+          setDash({
+            classes_count: r.classes?.length ?? 0,
+            problems_count: r.problems?.length ?? 0,
+            assignments_count: 0,
+            contests_count: 0,
+          });
+        }).catch(() => {});
+      }
+    }).catch(() => setRole(''));
+  }, []);
+
+  if (!role) return <Screen><LoadingBlock hint="Đang kiểm tra quyền giảng viên…" /></Screen>;
+  if (role !== 'teacher' && role !== 'admin') {
+    return (
+      <Screen>
+        <Card>
+          <SectionTitle>Không có quyền</SectionTitle>
+          <Muted>Tài khoản không có quyền giảng viên.</Muted>
+        </Card>
+      </Screen>
+    );
+  }
 
   return (
-    <ScrollView style={{ padding: 16 }}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Tạo testset</Text>
-      <TextInput placeholder="problem_id" value={pid} onChangeText={setPid} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
-      <Text>Checker: exact / float / sorted / tokens / regex</Text>
-      <TextInput value={checker} onChangeText={setChecker} style={{ borderWidth: 1, marginTop: 4 }} autoCapitalize="none" />
-      <TextInput placeholder="mẫu regex (nếu checker=regex)" value={checkerCfg} onChangeText={setCheckerCfg} style={{ borderWidth: 1, marginTop: 4 }} autoCapitalize="none" />
-      <TextInput multiline value={cases} onChangeText={setCases} style={{ borderWidth: 1, minHeight: 100, marginTop: 8, fontFamily: 'monospace' }} />
-      <Button title="Tạo testset" onPress={mkts} />
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>Chấm lại + Đối chiếu</Text>
-      <TextInput placeholder="submission_id" value={sid} onChangeText={setSid} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
-      <TextInput placeholder="run a" value={ra} onChangeText={setRa} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
-      <TextInput placeholder="run b" value={rb} onChangeText={setRb} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
-      <Button title="Chấm lại" onPress={() => show(api(`/admin/submissions/${sid}/rejudge`, { method: 'POST' }))} />
-      <Button title="Đối chiếu" onPress={() => show(api(`/admin/submissions/${sid}/compare?a=${ra}&b=${rb}`))} />
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>Chống đạo văn</Text>
-      <TextInput placeholder="submission a" value={sa} onChangeText={setSa} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
-      <TextInput placeholder="submission b" value={sb} onChangeText={setSb} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
-      <Button title="So sánh" onPress={() => show(api(`/admin/submissions/${sa}/similarity/${sb}`))} />
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>Theo dõi lớp</Text>
-      <TextInput placeholder="class_id" value={cid} onChangeText={setCid} style={{ borderWidth: 1, marginTop: 8 }} keyboardType="numeric" />
-      <Button title="Xem" onPress={() => show(api(`/admin/classes/${cid}/progress`))} />
-      <Text style={{ marginTop: 8 }}>{out}</Text>
-    </ScrollView>
+    <Screen>
+      <Hero kicker="KHU GIẢNG VIÊN" title="Quản lý đề & lớp" sub="Dựng testset, chấm bài, theo dõi tiến độ và vận hành lớp học." />
+
+      {dash && (
+        <Card>
+          <SectionTitle>Tổng quan nhanh</SectionTitle>
+          <View style={s.statsRow}>
+            <View style={s.statBox}>
+              <Text style={s.statValue}>{dash.classes_count}</Text>
+              <Text style={s.statLabel}>Lớp học</Text>
+            </View>
+            <View style={s.statBox}>
+              <Text style={s.statValue}>{dash.problems_count}</Text>
+              <Text style={s.statLabel}>Đề thi</Text>
+            </View>
+          </View>
+        </Card>
+      )}
+
+      <Card>
+        <SectionTitle>Chức năng chính</SectionTitle>
+        <Muted>Chọn mục bên dưới để mở giao diện chi tiết.</Muted>
+        <View style={s.navGrid}>
+          {NAV_CARDS.map((card) => (
+            <TouchableOpacity
+              key={card.id}
+              style={s.navCard}
+              onPress={() => navigation.navigate(card.screen)}
+              activeOpacity={0.7}
+            >
+              <Text style={s.navIcon}>{card.icon}</Text>
+              <Text style={s.navTitle}>{card.title}</Text>
+              <Text style={s.navDesc}>{card.desc}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Card>
+    </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.raised,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: spacing.xs,
+  },
+  navGrid: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  navCard: {
+    padding: spacing.lg,
+    backgroundColor: colors.raised,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  navIcon: {
+    fontSize: 32,
+    marginBottom: spacing.sm,
+  },
+  navTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  navDesc: {
+    fontSize: 13,
+    color: colors.muted,
+    lineHeight: 18,
+  },
+});

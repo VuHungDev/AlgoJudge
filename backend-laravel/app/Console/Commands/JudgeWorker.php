@@ -93,7 +93,8 @@ class JudgeWorker extends Command
             }
 
             $pv = ProblemVersion::find($job->problem_version_id);
-            $tl = (int) ($pv->time_limit_ms ?? 2000);
+            $tl = (int) min(max((int) ($pv->time_limit_ms ?? 2000), 500), 30000);
+            $memKb = (int) min(max((int) ($pv->memory_limit_kb ?? 262144), 65536), 1048576);
             $checker = $pv->checker ?? 'exact';
             $checkerCfg = $pv->checker_config ?? '';
             $rows = TestCase::where('problem_version_id', $job->problem_version_id)
@@ -110,7 +111,7 @@ class JudgeWorker extends Command
                 for ($n = 0; $n < $runs; $n++) {
                     try {
                         [$v1, $out1, $err1, $ms1] = JudgeService::runCase(
-                            $job->language, $job->source_code, $c->input_data, $tl,
+                            $job->language, $job->source_code, $c->input_data, $tl, $memKb,
                             $job->compiler_options ?? '', $job->command_line_arguments ?? ''
                         );
                     } catch (\Throwable) {

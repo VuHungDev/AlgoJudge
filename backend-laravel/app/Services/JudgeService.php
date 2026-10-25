@@ -10,7 +10,7 @@ class JudgeService
         return preg_replace('/[$&;<>|`]/', '', trim($s)) ?? '';
     }
 
-    public static function runCase(string $lang, string $code, string $input, int $timeLimitMs, string $compilerOptions = '', string $cmdArgs = ''): array
+    public static function runCase(string $lang, string $code, string $input, int $timeLimitMs, int $memoryKb = 262144, string $compilerOptions = '', string $cmdArgs = ''): array
     {
         $codeB64 = base64_encode($code);
         $cmdArgs = self::cleanOpt($cmdArgs);
@@ -46,8 +46,9 @@ class JudgeService
         // Go runtime can thread (clone) ke ca chuong trinh don gian -> pids-limit cao hon.
         // Java can nhieu tien trinh hon Python/JS luc JVM khoi dong.
         $pids = $lang === 'go' ? '128' : ($lang === 'java' ? '48' : '32');
+        $memMb = max(64, min(1024, (int) ceil($memoryKb / 1024)));
         $run = ['docker', 'run', '--rm', '-i', '--init', '--network', 'none', '--cap-drop', 'ALL', '--pids-limit', $pids,
-            '-m', '256m', '--cpus', '1.0', '--read-only', '--tmpfs', $tmpfs, '-w', '/tmp',
+            '-m', $memMb.'m', '--cpus', '1.0', '--read-only', '--tmpfs', $tmpfs, '-w', '/tmp',
             '--user', 'nobody', '--name', '', '-e', "OJ_CODE=$codeB64", $img, 'sh', '-c', $sh];
 
         $cname = 'ojrun_'.bin2hex(random_bytes(6));
